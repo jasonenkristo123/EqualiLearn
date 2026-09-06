@@ -3,10 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-
-type Tab = "masuk" | "daftar";
+import AuthTabs from "./AuthTabs";
 
 function GoogleIcon() {
   return (
@@ -32,8 +29,6 @@ function GoogleIcon() {
 }
 
 export default function Login() {
-  const [tab, setTab] = useState<Tab>("masuk");
-
   return (
     <main className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-primary-dark px-4 py-12">
       <Image
@@ -64,24 +59,7 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
-          {(["masuk", "daftar"] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTab(value)}
-              aria-pressed={tab === value}
-              className={cn(
-                "rounded-lg py-2.5 font-inter-600 text-xs capitalize transition-colors",
-                tab === value
-                  ? "bg-white/10 text-white"
-                  : "text-white/50 hover:text-white/80",
-              )}
-            >
-              {value === "masuk" ? "Masuk" : "Daftar"}
-            </button>
-          ))}
-        </div>
+        <AuthTabs active="masuk" />
 
         <form
           className="mt-6 flex flex-col gap-4"
@@ -107,9 +85,7 @@ export default function Login() {
             <input
               id="password"
               type="password"
-              autoComplete={
-                tab === "masuk" ? "current-password" : "new-password"
-              }
+              autoComplete="current-password"
               placeholder="Masukkan kata sandi"
               className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white transition-colors placeholder:text-white/30 focus:border-white/25 focus:outline-none"
             />

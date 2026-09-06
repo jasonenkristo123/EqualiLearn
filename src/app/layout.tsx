@@ -24,7 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${instrument_serif.variable}`}
+      className={`${inter.variable} ${instrument_serif.variable} no-scrollbar`}
     >
       <body className="min-h-full flex flex-col font-sans antialiased">{children}</body>
     </html>

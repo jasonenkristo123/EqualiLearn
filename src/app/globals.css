@@ -50,6 +50,11 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   --background-image-linear-white: linear-gradient(106deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.1) 100%);
+  --color-primary-dark: #050C14;
+  --color-cyan: #14B8A6;
+  --color-lightblue: #A9CAE9;
+  --color-lightwhite: #0F172A80;
+  --color-greylight: #C4C7C8;
 
 }
 
@@ -155,4 +160,36 @@
 @utility font-serif-400 {
   font-family: var(--font-instrument-serif);
   font-weight: 400;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@utility animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
+
+@utility no-scrollbar {
+  /* IE and Edge */
+  -ms-overflow-style: none;
+  
+  /* Firefox */
+  scrollbar-width: none;
+
+  /* Safari, Chrome, and Opera */
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

@@ -2,18 +2,43 @@
 
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-    { label: "Beranda", href: "/home" },
-    { label: "Fitur", href: "#fitur" },
-    { label: "Mode", href: "#mode" },
-    { label: "Aksesibilitas", href: "#aksesibilitas" },
+    { label: "Beranda", id: "beranda", href: "/home#beranda" },
+    { label: "Fitur", id: "fitur", href: "/home#fitur" },
+    { label: "Mode", id: "mode", href: "/home#mode" },
+    { label: "Aksesibilitas", id: "aksesibilitas", href: "/home#aksesibilitas" },
 ];
 
 export default function Navbar() {
     const [open, setOpen] = useState(false);
+    const [activeId, setActiveId] = useState("beranda");
     const close = () => setOpen(false);
+    
+    useEffect(() => {
+        const sections = NAV_LINKS.map((link) =>
+            document.getElementById(link.id),
+        ).filter((el): el is HTMLElement => el !== null);
+
+        if (sections.length === 0) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort(
+                        (a, b) => b.intersectionRatio - a.intersectionRatio,
+                    );
+                if (visible[0]) setActiveId(visible[0].target.id);
+            },
+            { rootMargin: "-45% 0px -45% 0px", threshold: [0, 0.5, 1] },
+        );
+
+        sections.forEach((section) => observer.observe(section));
+        return () => observer.disconnect();
+    }, []);
 
     return (
         <header className="fixed inset-x-0 top-0 z-999">
@@ -26,12 +51,20 @@ export default function Navbar() {
                     EqualiLearn
                 </Link>
 
-                <ul className="hidden items-center gap-8 text-sm text-white/90 md:flex">
+                <ul className="hidden items-center gap-8 text-sm md:flex">
                     {NAV_LINKS.map((link) => (
                         <li key={link.href}>
                             <Link
                                 href={link.href}
-                                className="font-inter-500 transition-colors hover:text-white"
+                                aria-current={
+                                    activeId === link.id ? "page" : undefined
+                                }
+                                className={cn(
+                                    "font-inter-500 transition-colors",
+                                    activeId === link.id
+                                        ? "text-white"
+                                        : "text-white/60 hover:text-white",
+                                )}
                             >
                                 {link.label}
                             </Link>
@@ -69,7 +102,13 @@ export default function Navbar() {
                                 <Link
                                     href={link.href}
                                     onClick={close}
-                                    className="block rounded-md px-2 py-3 font-inter-500 text-base transition-colors hover:bg-white/10"
+                                    aria-current={
+                                        activeId === link.id ? "page" : undefined
+                                    }
+                                    className={cn(
+                                        "block rounded-md px-2 py-3 font-inter-500 text-base transition-colors hover:bg-white/10",
+                                        activeId === link.id && "bg-white/5",
+                                    )}
                                 >
                                     {link.label}
                                 </Link>

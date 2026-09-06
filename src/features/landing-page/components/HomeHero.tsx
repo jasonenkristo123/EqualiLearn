@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 export default function HomeHero() {
     return (
-        <section className="relative w-full h-dvh overflow-clip">
+        <section id="beranda" className="relative w-full h-dvh overflow-clip">
             <video
                 src="/video/hero-video.mp4"
                 autoPlay

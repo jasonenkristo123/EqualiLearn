@@ -29,10 +29,9 @@ function BadgeRow({ "aria-hidden": ariaHidden }: { "aria-hidden"?: boolean }) {
 
 export default function HomeFeatures() {
     return (
-        <section className="w-full bg-primary-dark">
+        <section id="fitur" className="w-full scroll-mt-24 bg-primary-dark">
             <div className="flex overflow-x-hidden select-none border border-white/10 py-6">
                 <div className="flex w-max animate-marquee hover:paused">
-                    <BadgeRow />
                     <BadgeRow aria-hidden />
                 </div>
             </div>

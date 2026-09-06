@@ -1,0 +1,159 @@
+"use client";
+
+import { ArrowRight } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+
+type Tab = "masuk" | "daftar";
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.52 12.27c0-.82-.07-1.6-.21-2.36H12v4.47h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.74Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.08 7.95-2.91l-3.88-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09A12 12 0 0 0 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.27 14.29a7.19 7.19 0 0 1 0-4.58v-3.1H1.29a12 12 0 0 0 0 10.77l3.98-3.1Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.29 6.61l3.98 3.1C6.22 6.86 8.87 4.75 12 4.75Z"
+      />
+    </svg>
+  );
+}
+
+export default function Login() {
+  const [tab, setTab] = useState<Tab>("masuk");
+
+  return (
+    <main className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-primary-dark px-4 py-12">
+      <Image
+        src="/images/green-gradients.png"
+        alt=""
+        aria-hidden
+        width={800}
+        height={800}
+        className="pointer-events-none absolute -left-40 -top-40 h-auto w-[42rem] max-w-none select-none opacity-60"
+      />
+      <Image
+        src="/images/purple-gradient.png"
+        alt=""
+        aria-hidden
+        width={800}
+        height={800}
+        className="pointer-events-none absolute -bottom-40 -right-40 h-auto w-[42rem] max-w-none select-none opacity-60"
+      />
+
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.02] p-8 backdrop-blur-sm sm:p-10">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="font-serif font-normal leading-tight text-white text-2xl sm:text-3xl">
+            Mulai Perjalanan{" "}
+            <span className="italic text-lightblue">Inklusif</span> Anda
+          </h1>
+          <p className="text-sm text-white/50">
+            Akses ruang belajar adaptif Anda.
+          </p>
+        </div>
+
+        <div className="mt-8 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+          {(["masuk", "daftar"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTab(value)}
+              aria-pressed={tab === value}
+              className={cn(
+                "rounded-lg py-2.5 font-inter-600 text-xs capitalize transition-colors",
+                tab === value
+                  ? "bg-white/10 text-white"
+                  : "text-white/50 hover:text-white/80",
+              )}
+            >
+              {value === "masuk" ? "Masuk" : "Daftar"}
+            </button>
+          ))}
+        </div>
+
+        <form
+          className="mt-6 flex flex-col gap-4"
+          onSubmit={(e) => e.preventDefault()}
+        >
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="email" className="sr-only">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="nama@gmail.com"
+              className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white transition-colors placeholder:text-white/30 focus:border-white/25 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="password" className="sr-only">
+              Kata sandi
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete={
+                tab === "masuk" ? "current-password" : "new-password"
+              }
+              placeholder="Masukkan kata sandi"
+              className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white transition-colors placeholder:text-white/30 focus:border-white/25 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-xs">
+            <label className="flex cursor-pointer items-center gap-2 text-white/60">
+              <input
+                type="checkbox"
+                className="size-4 rounded border-white/20 bg-white/5 accent-cyan"
+              />
+              Ingat saya
+            </label>
+            <Link
+              href="#"
+              className="text-cyan transition-colors hover:text-cyan/80"
+            >
+              Lupa kata sandi?
+            </Link>
+          </div>
+
+          <button
+            type="submit"
+            className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-inter-600 text-sm text-primary-dark transition-colors hover:bg-white/90"
+          >
+            Lanjutkan
+            <ArrowRight className="size-4" />
+          </button>
+        </form>
+
+        <div className="my-6 flex items-center gap-4">
+          <span className="h-px flex-1 bg-white/10" />
+          <span className="text-xs text-white/40">atau</span>
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
+
+        <button
+          type="button"
+          className="inline-flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-6 py-3 text-sm text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white"
+        >
+          <GoogleIcon />
+          Lanjutkan Dengan Google
+        </button>
+      </div>
+    </main>
+  );
+}

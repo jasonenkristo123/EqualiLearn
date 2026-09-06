@@ -94,7 +94,7 @@ export default function HomeAccessibility() {
         aria-hidden
         width={900}
         height={900}
-        className="ha-light ha-light-blue pointer-events-none absolute left-0 -top-20 h-auto w-[75%] max-w-none select-none [mask-image:linear-gradient(to_bottom,transparent,#000_25%)] sm:w-[60%] lg:w-[55%]"
+        className="ha-light ha-light-blue pointer-events-none absolute -left-20 sm:left-0 sm:-top-20 h-auto w-[90%] max-w-none select-none [mask-image:linear-gradient(to_bottom,transparent,#000_25%)] sm:w-[60%] lg:w-[55%]"
       />
       <Image
         src="/images/purle-light.svg"
@@ -102,7 +102,7 @@ export default function HomeAccessibility() {
         aria-hidden
         width={700}
         height={900}
-        className="ha-light ha-light-purple pointer-events-none absolute right-0 -top-20 h-auto w-[55%] max-w-none select-none [mask-image:linear-gradient(to_bottom,transparent,#000_25%)] sm:w-[60%] lg:w-[55%]"
+        className="ha-light ha-light-purple pointer-events-none absolute -right-20 sm:right-0 sm:-top-20 h-auto w-[90%] max-w-none select-none [mask-image:linear-gradient(to_bottom,transparent,#000_25%)] sm:w-[60%] lg:w-[55%]"
       />
 
       <div className="relative z-10 mx-auto flex min-h-[85vh] max-w-4xl flex-col items-center justify-center gap-10 px-6 py-32 text-center sm:gap-12 sm:py-40 lg:py-48">

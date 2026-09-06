@@ -52,6 +52,18 @@ export const BADGEDATA: Badge[] = [
   {
     desc: "TRANSKRIP",
   },
+  {
+    desc: "AUDIO NARRATOR",
+  },
+  {
+    desc: "KANVAS SPASIAL",
+  },
+  {
+    desc: "RUANG KOLABORASI",
+  },
+  {
+    desc: "TRANSKRIP",
+  },
 ];
 
 export const STEPS: Step[] = [

@@ -7,9 +7,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-instrument-serif);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-inter);
+  --breakpoint-3xl: 90rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -46,6 +48,14 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --background-image-linear-white: linear-gradient(106deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.1) 100%);
+  --color-primary-dark: #050C14;
+  --color-cyan: #14B8A6;
+  --color-lightblue: #A9CAE9;
+  --color-lightwhite: #0F172A80;
+  --color-greylight: #C4C7C8;
+
 }
 
 :root {
@@ -117,14 +127,79 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
+@utility font-inter-400 {
+  font-family: var(--font-inter);
+  font-weight: 400;
+}
+
+@utility font-inter-500 {
+  font-family: var(--font-inter);
+  font-weight: 500;
+}
+
+@utility font-inter-600 {
+  font-family: var(--font-inter);
+  font-weight: 600;
+}
+
+@utility font-inter-700 {
+  font-family: var(--font-inter);
+  font-weight: 700;
+}
+
+@utility font-inter-800 {
+  font-family: var(--font-inter);
+  font-weight: 800;
+}
+
+@utility font-inter-900 {
+  font-family: var(--font-inter);
+  font-weight: 900;
+}
+
+@utility font-serif-400 {
+  font-family: var(--font-instrument-serif);
+  font-weight: 400;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
   }
-  body {
-    @apply bg-background text-foreground;
+  to {
+    transform: translateX(-50%);
   }
+}
+
+@utility animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
   html {
-    @apply font-sans;
+    scroll-behavior: auto;
+  }
+}
+
+@utility no-scrollbar {
+  /* IE and Edge */
+  -ms-overflow-style: none;
+  
+  /* Firefox */
+  scrollbar-width: none;
+
+  /* Safari, Chrome, and Opera */
+  &::-webkit-scrollbar {
+    display: none;
   }
 }

@@ -10,7 +10,7 @@ export default function Register() {
     <main className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-primary-dark px-4 py-12">
       <Image
         src="/images/green-gradients.png"
-        alt=""
+        alt="green gradient"
         aria-hidden
         width={800}
         height={800}
@@ -18,7 +18,7 @@ export default function Register() {
       />
       <Image
         src="/images/purple-gradient.png"
-        alt=""
+        alt="purple gradient"
         aria-hidden
         width={800}
         height={800}

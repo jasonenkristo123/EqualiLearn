@@ -3,43 +3,12 @@ import { api } from "@/shared/lib/axios";
 import type {
   SpeechHistoryResponse,
   SpeechVoicesResponse,
-  SummarizeDocumentInput,
   SynthesizeSpeechInput,
 } from "../type/ppt-audio.type";
-
-export async function uploadAndSummarizeDocument({
-  file,
-  language = "en",
-  detailLevel = "balanced",
-  targetAudience = "student",
-  saveToHistory = true,
-}: SummarizeDocumentInput): Promise<unknown> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("language", language);
-  formData.append("detail_level", detailLevel);
-  formData.append("target_audience", targetAudience);
-  formData.append("save_to_history", String(saveToHistory));
-
-  const { data } = await api.post<unknown>("documents/summarize", formData, {
-    // Let the browser add the multipart boundary instead of inheriting JSON.
-    headers: { "Content-Type": undefined },
-  });
-
-  console.info("[PptToAudio] documents/summarize response", data);
-  return data;
-}
 
 export async function getSpeechVoices(): Promise<SpeechVoicesResponse> {
   const { data } = await api.get<SpeechVoicesResponse>("speech/voices");
   console.info("[PptToAudio] speech/voices response", data);
-  return data;
-}
-
-export async function getDocument(documentId: string): Promise<unknown> {
-  const { data } = await api.get<unknown>(
-    `documents/${encodeURIComponent(documentId)}`,
-  );
   return data;
 }
 

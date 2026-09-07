@@ -125,6 +125,11 @@ interface MindmapState {
   addNode: (position?: XYPosition) => void;
   /** Promote an AI-extracted concept into a canvas node, linked to the root. */
   addConceptAsNode: (concept: ExtractedConcept, position?: XYPosition) => void;
+  setGeneratedMindmap: (
+    nodes: ConceptFlowNode[],
+    edges: MindmapEdge[],
+    extractedConcepts: ExtractedConcept[],
+  ) => void;
   removeNode: (id: string) => void;
   reset: () => void;
 }
@@ -185,6 +190,10 @@ export const useMindmapStore = create<MindmapState>((set, get) => ({
       ],
       edges: [...state.edges, edgeBetween(ROOT_ID, id)],
     }));
+  },
+
+  setGeneratedMindmap: (nodes, edges, extractedConcepts) => {
+    set({ nodes, edges, extractedConcepts });
   },
 
   removeNode: (id) => {

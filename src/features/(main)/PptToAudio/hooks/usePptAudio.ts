@@ -1,30 +1,23 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+
+export {
+  useDocument,
+  useSummarizeDocument,
+} from "@/shared/hooks/useDocuments";
+
 import {
-  getDocument,
   getSpeechHistory,
   getSpeechVoices,
   synthesizeSpeech,
-  uploadAndSummarizeDocument,
 } from "../service/api";
 
 const pptAudioKeys = {
-  document: (documentId: string) =>
-    ["ppt-audio", "document", documentId] as const,
   voices: ["ppt-audio", "voices"] as const,
   history: (page: number, limit: number) =>
     ["ppt-audio", "speech-history", page, limit] as const,
 };
-
-export function useDocument(documentId: string) {
-  return useQuery({
-    queryKey: pptAudioKeys.document(documentId),
-    queryFn: () => getDocument(documentId),
-    enabled: Boolean(documentId),
-    retry: false,
-  });
-}
 
 export function useSpeechVoices() {
   return useQuery({
@@ -32,10 +25,6 @@ export function useSpeechVoices() {
     queryFn: getSpeechVoices,
     staleTime: 60 * 60 * 1000,
   });
-}
-
-export function useSummarizeDocument() {
-  return useMutation({ mutationFn: uploadAndSummarizeDocument });
 }
 
 export function useSynthesizeSpeech() {

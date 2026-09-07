@@ -30,5 +30,6 @@ export interface ExtractedConcept {
   id: string;
   title: string;
   description: string;
-  page: number;
+  page?: number;
+  sourceLabel?: string;
 }

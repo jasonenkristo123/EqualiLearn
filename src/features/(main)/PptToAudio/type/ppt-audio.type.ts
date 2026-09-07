@@ -37,14 +37,6 @@ export interface SpeechVoicesResponse {
   data: SpeechVoice[];
 }
 
-export interface SummarizeDocumentInput {
-  file: File;
-  language?: string;
-  detailLevel?: "brief" | "balanced" | "detailed";
-  targetAudience?: string;
-  saveToHistory?: boolean;
-}
-
 export interface SynthesizeSpeechInput {
   text: string;
   voice: string;

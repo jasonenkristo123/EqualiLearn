@@ -22,6 +22,7 @@ import {
   Database,
   Download,
   Link2,
+  LoaderCircle,
   Maximize2,
   Minus,
   MoreHorizontal,
@@ -32,10 +33,15 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { ChangeEvent, ComponentType, ReactNode, SVGProps } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
+import { getDocumentErrorMessage } from "@/shared/api/documents";
+import { useDocument, useSummarizeDocument } from "@/shared/hooks/useDocuments";
 import { useMindmapStore } from "@/shared/store/mindmap-store";
+import { documentToMindmap } from "../service/document-to-mindmap";
 import type { ConceptFlowNode, ConceptIcon } from "../type/mindmap.type";
 
 const ICONS: Record<ConceptIcon, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -117,6 +123,11 @@ function ConceptNode({ data, selected }: NodeProps<ConceptFlowNode>) {
           <p className="mt-3 font-inter-600 text-[15px] leading-snug text-white">
             {data.title}
           </p>
+          {data.description && (
+            <p className="mt-2 line-clamp-4 text-xs leading-relaxed text-white/45">
+              {data.description}
+            </p>
+          )}
         </>
       ) : (
         <>
@@ -156,6 +167,7 @@ const nodeTypes = { concept: ConceptNode };
 /* -------------------------------------------------------------------------- */
 
 interface PptCanvasProps {
+  initialDocumentId?: string;
   onExport?: () => void;
 }
 
@@ -165,6 +177,15 @@ function MindmapCanvas({ onExport }: PptCanvasProps) {
   const onNodesChange = useMindmapStore((s) => s.onNodesChange);
   const onEdgesChange = useMindmapStore((s) => s.onEdgesChange);
   const onConnect = useMindmapStore((s) => s.onConnect);
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    const frame = window.requestAnimationFrame(() => {
+      fitView({ padding: 0.25, duration: 350 });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [fitView, nodes.length]);
 
   return (
     <ReactFlow
@@ -294,7 +315,19 @@ function ToolbarDivider() {
 /*  Source context panel                                                       */
 /* -------------------------------------------------------------------------- */
 
-function SourceContextPanel({ onClose }: { onClose: () => void }) {
+function SourceContextPanel({
+  onClose,
+  onUpload,
+  fileInputRef,
+  isUploading,
+  documentName,
+}: {
+  onClose: () => void;
+  onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  isUploading: boolean;
+  documentName?: string;
+}) {
   const concepts = useMindmapStore((s) => s.extractedConcepts);
   const addConceptAsNode = useMindmapStore((s) => s.addConceptAsNode);
 
@@ -315,12 +348,30 @@ function SourceContextPanel({ onClose }: { onClose: () => void }) {
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto p-4">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.ppt,.pptx,.doc,.docx"
+          onChange={onUpload}
+          className="sr-only"
+          aria-label="Pilih dokumen untuk dibuat menjadi mind map"
+        />
         <button
           type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
           className="flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-5 text-white/50 transition-colors hover:border-white/30 hover:text-white/70"
         >
-          <Upload className="size-4" />
-          <span className="font-inter-500 text-xs">Upload PDF/PPT</span>
+          {isUploading ? (
+            <LoaderCircle className="size-4 animate-spin" />
+          ) : (
+            <Upload className="size-4" />
+          )}
+          <span className="max-w-full truncate font-inter-500 text-xs">
+            {isUploading
+              ? "Meringkas dokumen…"
+              : documentName || "Upload PDF/PPT"}
+          </span>
         </button>
 
         <div>
@@ -334,6 +385,11 @@ function SourceContextPanel({ onClose }: { onClose: () => void }) {
           </div>
 
           <ul className="space-y-2.5">
+            {concepts.length === 0 && (
+              <li className="rounded-xl border border-dashed border-white/10 px-3 py-8 text-center text-xs leading-relaxed text-white/35">
+                Konsep akan muncul setelah dokumen selesai diringkas.
+              </li>
+            )}
             {concepts.map((concept) => (
               <li key={concept.id}>
                 <button
@@ -347,9 +403,13 @@ function SourceContextPanel({ onClose }: { onClose: () => void }) {
                   <p className="mt-1 text-xs leading-relaxed text-white/45">
                     {concept.description}
                   </p>
-                  <span className="mt-2 inline-block text-[10px] text-white/30">
-                    Pg. {concept.page}
-                  </span>
+                  {(concept.page || concept.sourceLabel) && (
+                    <span className="mt-2 inline-block text-[10px] text-white/30">
+                      {concept.page
+                        ? `Pg. ${concept.page}`
+                        : concept.sourceLabel}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -375,8 +435,70 @@ function SourceContextPanel({ onClose }: { onClose: () => void }) {
 /*  Root                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export default function PptCanvas({ onExport }: PptCanvasProps) {
+export default function PptCanvas({
+  initialDocumentId = "",
+  onExport,
+}: PptCanvasProps) {
+  const router = useRouter();
   const [sourceOpen, setSourceOpen] = useState(true);
+  const [documentName, setDocumentName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const setGeneratedMindmap = useMindmapStore((s) => s.setGeneratedMindmap);
+  const documentQuery = useDocument(initialDocumentId);
+  const summarizeMutation = useSummarizeDocument();
+
+  const applyDocument = useCallback(
+    (response: NonNullable<typeof documentQuery.data>) => {
+      const generated = documentToMindmap(response.data);
+      setGeneratedMindmap(
+        generated.nodes,
+        generated.edges,
+        generated.extractedConcepts,
+      );
+      setDocumentName(response.data.file_name);
+    },
+    [setGeneratedMindmap],
+  );
+
+  useEffect(() => {
+    if (documentQuery.data) applyDocument(documentQuery.data);
+  }, [applyDocument, documentQuery.data]);
+
+  useEffect(() => {
+    if (!documentQuery.error) return;
+    toast.error(
+      getDocumentErrorMessage(
+        documentQuery.error,
+        "Dokumen tersimpan gagal dimuat.",
+      ),
+    );
+  }, [documentQuery.error]);
+
+  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const response = await summarizeMutation.mutateAsync({
+        file,
+        language: "id",
+        detailLevel: "balanced",
+        targetAudience: "student",
+        saveToHistory: true,
+      });
+      applyDocument(response);
+      router.replace(
+        `/ppt-canvas?documentId=${encodeURIComponent(response.data.id)}`,
+        { scroll: false },
+      );
+      toast.success("Mind map berhasil dibuat dari dokumen.");
+    } catch (error) {
+      toast.error(
+        getDocumentErrorMessage(error, "Gagal membuat mind map dari dokumen."),
+      );
+    }
+  };
 
   return (
     <ReactFlowProvider>
@@ -386,7 +508,13 @@ export default function PptCanvas({ onExport }: PptCanvasProps) {
         </div>
 
         {sourceOpen ? (
-          <SourceContextPanel onClose={() => setSourceOpen(false)} />
+          <SourceContextPanel
+            onClose={() => setSourceOpen(false)}
+            onUpload={handleUpload}
+            fileInputRef={fileInputRef}
+            isUploading={summarizeMutation.isPending || documentQuery.isLoading}
+            documentName={documentName}
+          />
         ) : (
           <button
             type="button"

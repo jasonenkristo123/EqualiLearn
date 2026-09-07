@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  AlertCircle,
   FileText,
+  LoaderCircle,
   Mic,
   Pause,
   Play,
@@ -13,113 +15,38 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { ChangeEvent, ComponentType, ReactNode, SVGProps } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
+import {
+  useDocument,
+  useSpeechVoices,
+  useSummarizeDocument,
+  useSynthesizeSpeech,
+} from "../hooks/usePptAudio";
+import { getPptAudioErrorMessage } from "../service/api";
+import { normalizeDocumentSummary } from "../service/normalize-summary";
+import type {
+  SourceDocument,
+  Takeaway,
+  TranscriptParagraph,
+} from "../type/ppt-audio.type";
 
-export type DocumentKind = "pdf" | "ppt";
-export type DocumentStatus = "ready" | "processing";
-
-export interface SourceDocument {
-  id: string;
-  name: string;
-  kind: DocumentKind;
-  pageCount: number;
-  durationLabel: string;
-  status: DocumentStatus;
-}
-
-export interface Takeaway {
-  id: string;
-  title: string;
-  summary: string;
-  tags?: string[];
-}
-
-export interface TranscriptParagraph {
-  id: string;
-  text: string;
-  /** Playback offset (seconds) this paragraph starts at — drives audio sync later. */
-  atSeconds: number;
-}
-
-const MOCK_DOCUMENTS: SourceDocument[] = [
-  {
-    id: "doc-1",
-    name: "Materi_Jaringan_Komputer.pdf",
-    kind: "pdf",
-    pageCount: 24,
-    durationLabel: "03:30 min",
-    status: "ready",
-  },
-  {
-    id: "doc-2",
-    name: "Slide_OSI_Layer_V2.ppt",
-    kind: "ppt",
-    pageCount: 18,
-    durationLabel: "02:45 min",
-    status: "ready",
-  },
-];
-
-const MOCK_TAKEAWAYS: Takeaway[] = [
-  {
-    id: "tk-1",
-    title: "Overview Topologi Jaringan",
-    summary:
-      "Pemahaman dasar mengenai struktur fisik dan logis dari jaringan komputer modern.",
-  },
-  {
-    id: "tk-2",
-    title: "Lapisan OSI Model",
-    summary: "Analisis 7 layer OSI untuk standarisasi komunikasi sistem.",
-    tags: ["Physical", "Data Link", "Network"],
-  },
-  {
-    id: "tk-3",
-    title: "TCP/IP Protocol Suite",
-    summary:
-      "Perbandingan antara model referensi OSI dengan implementasi praktis TCP/IP.",
-  },
-];
-
-const MOCK_TRANSCRIPT: TranscriptParagraph[] = [
-  {
-    id: "p-1",
-    atSeconds: 0,
-    text: "Model Open Systems Interconnection (OSI) dikembangkan oleh International Organization for Standardization (ISO) pada tahun 1984.",
-  },
-  {
-    id: "p-2",
-    atSeconds: 24,
-    text: "Ini adalah model arsitektur jaringan yang secara konseptual membagi metode komunikasi jaringan menjadi tujuh lapisan.",
-  },
-  {
-    id: "p-3",
-    atSeconds: 58,
-    text: "Lapisan-lapisan ini, dari bawah ke atas, meliputi: Physical, Data Link, Network, Transport, Session, Presentation, dan Application. Masing-masing memiliki fungsi spesifik dan hanya berkomunikasi dengan lapisan tepat di atas dan di bawahnya.",
-  },
-  {
-    id: "p-4",
-    atSeconds: 108,
-    text: "Pemahaman tentang model ini sangat krusial bagi administrator jaringan untuk melakukan troubleshooting (pemecahan masalah).",
-  },
-  {
-    id: "p-5",
-    atSeconds: 142,
-    text: "Misalnya, jika ada masalah pada konektivitas fisik kabel, ini berada di ranah Layer 1 (Physical). Namun jika masalahnya ada pada routing IP, itu adalah ranah Layer 3 (Network).",
-  },
-  {
-    id: "p-6",
-    atSeconds: 184,
-    text: "Meskipun dalam praktiknya model TCP/IP lebih umum digunakan, model OSI tetap menjadi standar referensi konseptual yang tak tergantikan dalam pendidikan jaringan komputer.",
-  },
-];
+export type {
+  DocumentKind,
+  DocumentStatus,
+  SourceDocument,
+  Takeaway,
+  TranscriptParagraph,
+} from "../type/ppt-audio.type";
 
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
 const MONO = "font-[ui-monospace,SFMono-Regular,Menlo,monospace]";
 
 interface PptAudioProps {
+  initialDocumentId?: string;
   documents?: SourceDocument[];
   takeaways?: Takeaway[];
   transcript?: TranscriptParagraph[];
@@ -130,72 +57,300 @@ interface PptAudioProps {
 }
 
 export default function PptAudio({
-  documents = MOCK_DOCUMENTS,
-  takeaways = MOCK_TAKEAWAYS,
-  transcript = MOCK_TRANSCRIPT,
-  durationSeconds = 218,
-  initialPositionSeconds = 194,
+  initialDocumentId = "",
+  documents = [],
+  takeaways = [],
+  transcript = [],
+  durationSeconds = 0,
+  initialPositionSeconds = 0,
   onUpload,
   onSelectDocument,
 }: PptAudioProps) {
-  const [activeDocId, setActiveDocId] = useState(documents[0]?.id ?? "");
-  const [activeTakeawayId, setActiveTakeawayId] = useState(
-    takeaways[1]?.id ?? takeaways[0]?.id ?? "",
+  const router = useRouter();
+  const [documentItems, setDocumentItems] = useState(documents);
+  const [displayTakeaways, setDisplayTakeaways] = useState(takeaways);
+  const [displayTranscript, setDisplayTranscript] = useState(transcript);
+  const [activeDocId, setActiveDocId] = useState(
+    initialDocumentId || documents[0]?.id || "",
   );
-  // Explicit for now; real audio sync will derive this from `position` + `atSeconds`.
+  const [activeTakeawayId, setActiveTakeawayId] = useState(
+    takeaways[0]?.id ?? "",
+  );
   const [activeParagraphId, setActiveParagraphId] = useState(
-    transcript[2]?.id ?? transcript[0]?.id ?? "",
+    transcript[0]?.id ?? "",
   );
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(
     Math.min(initialPositionSeconds, durationSeconds),
   );
+  const [playbackDuration, setPlaybackDuration] = useState(durationSeconds);
   const [speedIndex, setSpeedIndex] = useState(0);
+  const [selectedVoiceId, setSelectedVoiceId] = useState("");
+  const [narrationText, setNarrationText] = useState("");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [restoreDocumentId, setRestoreDocumentId] = useState(initialDocumentId);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  const pendingPlayRef = useRef(false);
+
+  const documentQuery = useDocument(restoreDocumentId);
+  const voicesQuery = useSpeechVoices();
+  const summarizeMutation = useSummarizeDocument();
+  const synthesizeMutation = useSynthesizeSpeech();
+
+  const voices = voicesQuery.data?.data ?? [];
+  const activeVoiceId = selectedVoiceId || voices[0]?.id || "aura-asteria-en";
   const activeDoc =
-    documents.find((doc) => doc.id === activeDocId) ?? documents[0];
+    documentItems.find((doc) => doc.id === activeDocId) ?? documentItems[0];
   const speed = PLAYBACK_SPEEDS[speedIndex];
-  const progressPct = durationSeconds ? (position / durationSeconds) * 100 : 0;
+  const progressPct = playbackDuration
+    ? (position / playbackDuration) * 100
+    : 0;
+  const isProcessing =
+    summarizeMutation.isPending || synthesizeMutation.isPending;
 
-  // Advance the playhead while playing; stop at the end.
   useEffect(() => {
-    if (!isPlaying) return;
-    const id = window.setInterval(() => {
-      setPosition((prev) => {
-        const next = prev + 1;
-        if (next >= durationSeconds) {
-          setIsPlaying(false);
-          return durationSeconds;
-        }
-        return next;
-      });
-    }, 1000 / speed);
-    return () => window.clearInterval(id);
-  }, [isPlaying, speed, durationSeconds]);
+    const audio = audioRef.current;
+    if (audio) audio.playbackRate = speed;
+  }, [speed]);
 
-  const togglePlay = () => {
-    setPosition((prev) => (prev >= durationSeconds ? 0 : prev));
-    setIsPlaying((v) => !v);
+  useEffect(
+    () => () => {
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    },
+    [],
+  );
+
+  const replaceAudioUrl = useCallback((nextUrl: string | null) => {
+    audioRef.current?.pause();
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = nextUrl;
+    setAudioUrl(nextUrl);
+    setIsPlaying(false);
+    setPosition(0);
+    setPlaybackDuration(0);
+  }, []);
+
+  useEffect(() => {
+    if (!documentQuery.data) return;
+
+    const normalized = normalizeDocumentSummary(documentQuery.data);
+    if (!normalized.documentId) return;
+
+    const restoredDocument: SourceDocument = {
+      id: normalized.documentId,
+      name: normalized.fileName,
+      kind:
+        normalized.fileType.toLowerCase() === "pdf" ||
+        normalized.fileName.toLowerCase().endsWith(".pdf")
+          ? "pdf"
+          : "ppt",
+      pageCount: normalized.pageCount,
+      durationLabel: "Audio siap dibuat",
+      status: "ready",
+    };
+
+    replaceAudioUrl(null);
+    setDocumentItems([restoredDocument]);
+    setActiveDocId(restoredDocument.id);
+    setDisplayTakeaways(normalized.takeaways);
+    setDisplayTranscript(normalized.transcript);
+    setActiveTakeawayId(normalized.takeaways[0]?.id ?? "");
+    setActiveParagraphId(normalized.transcript[0]?.id ?? "");
+    setNarrationText(normalized.narrationText);
+  }, [documentQuery.data, replaceAudioUrl]);
+
+  useEffect(() => {
+    if (!documentQuery.error) return;
+    toast.error(
+      getPptAudioErrorMessage(
+        documentQuery.error,
+        "Dokumen tersimpan gagal dimuat.",
+      ),
+    );
+  }, [documentQuery.error]);
+
+  const createNarration = async (
+    text: string,
+    voice: string,
+    playWhenReady = false,
+  ) => {
+    if (!text.trim()) {
+      toast.error("Ringkasan tidak berisi teks untuk dibuat menjadi audio.");
+      return;
+    }
+
+    pendingPlayRef.current = playWhenReady;
+    try {
+      const audioBlob = await synthesizeMutation.mutateAsync({
+        text,
+        voice,
+        format: "mp3",
+      });
+      replaceAudioUrl(URL.createObjectURL(audioBlob));
+    } catch (error) {
+      pendingPlayRef.current = false;
+      toast.error(
+        getPptAudioErrorMessage(error, "Gagal membuat narasi audio."),
+      );
+      throw error;
+    }
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const temporaryId = `${file.name}-${file.lastModified}`;
+    const pendingDocument: SourceDocument = {
+      id: temporaryId,
+      name: file.name,
+      kind: file.name.toLowerCase().endsWith(".pdf") ? "pdf" : "ppt",
+      pageCount: 0,
+      durationLabel: "Menunggu audio",
+      status: "processing",
+    };
+
+    replaceAudioUrl(null);
+    setNarrationText("");
+    setDocumentItems((current) => [
+      pendingDocument,
+      ...current.filter((document) => document.id !== temporaryId),
+    ]);
+    setActiveDocId(temporaryId);
+    setDisplayTakeaways([]);
+    setDisplayTranscript([]);
+    onUpload?.();
+
+    try {
+      const response = await summarizeMutation.mutateAsync({
+        file,
+        language: "en",
+        detailLevel: "balanced",
+        targetAudience: "student",
+        saveToHistory: true,
+      });
+      const normalized = normalizeDocumentSummary(response, file);
+      const completedDocument: SourceDocument = {
+        ...pendingDocument,
+        id: normalized.documentId,
+        pageCount: normalized.pageCount,
+        status: "ready",
+      };
+
+      setDocumentItems((current) => [
+        completedDocument,
+        ...current.filter((document) => document.id !== temporaryId),
+      ]);
+      setActiveDocId(normalized.documentId);
+      setDisplayTakeaways(normalized.takeaways);
+      setDisplayTranscript(normalized.transcript);
+      setActiveTakeawayId(normalized.takeaways[0]?.id ?? "");
+      setActiveParagraphId(normalized.transcript[0]?.id ?? "");
+      setNarrationText(normalized.narrationText);
+      toast.success("Dokumen berhasil diringkas.");
+      router.replace(
+        `/ppt-audio?documentId=${encodeURIComponent(normalized.documentId)}`,
+        { scroll: false },
+      );
+
+      if (normalized.narrationText) {
+        try {
+          await createNarration(normalized.narrationText, activeVoiceId);
+        } catch {
+          // The summary remains usable when speech synthesis is unavailable.
+        }
+      }
+    } catch (error) {
+      setDocumentItems((current) =>
+        current.map((document) =>
+          document.id === temporaryId
+            ? { ...document, status: "error" }
+            : document,
+        ),
+      );
+      toast.error(
+        getPptAudioErrorMessage(error, "Gagal mengunggah dan meringkas file."),
+      );
+    }
+  };
+
+  const togglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audioUrl || !audio) {
+      if (narrationText && !synthesizeMutation.isPending) {
+        try {
+          await createNarration(narrationText, activeVoiceId, true);
+        } catch {
+          // Error feedback is handled by createNarration.
+        }
+      }
+      return;
+    }
+
+    if (audio.paused) {
+      await audio.play().catch(() => {
+        toast.error("Browser tidak dapat memutar audio ini.");
+      });
+    } else {
+      audio.pause();
+    }
   };
 
   const selectDocument = (id: string) => {
     setActiveDocId(id);
+    setRestoreDocumentId(id);
+    router.replace(`/ppt-audio?documentId=${encodeURIComponent(id)}`, {
+      scroll: false,
+    });
     onSelectDocument?.(id);
   };
 
   const seekToParagraph = (paragraph: TranscriptParagraph) => {
     setActiveParagraphId(paragraph.id);
-    setPosition(Math.min(paragraph.atSeconds, durationSeconds));
+    const nextPosition = Math.min(paragraph.atSeconds, playbackDuration);
+    setPosition(nextPosition);
+    if (audioRef.current) audioRef.current.currentTime = nextPosition;
+  };
+
+  const seekAudio = (nextPosition: number) => {
+    const clampedPosition = Math.max(
+      0,
+      Math.min(nextPosition, playbackDuration),
+    );
+    setPosition(clampedPosition);
+    if (audioRef.current) audioRef.current.currentTime = clampedPosition;
+  };
+
+  const handleVoiceChange = async (event: ChangeEvent<HTMLSelectElement>) => {
+    const voiceId = event.target.value;
+    setSelectedVoiceId(voiceId);
+    if (!narrationText) return;
+
+    try {
+      await createNarration(narrationText, voiceId);
+      toast.success("Suara narator berhasil diganti.");
+    } catch {
+      // Error feedback is handled by createNarration.
+    }
   };
 
   return (
     <div className="flex flex-col gap-4 p-4 lg:h-[calc(100dvh-3.5rem)] lg:overflow-hidden lg:p-6">
-      {/* -------------------------------------------------------------- */}
-      {/*  Toolbar: source documents + metadata + upload                 */}
-      {/* -------------------------------------------------------------- */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          {documents.map((doc) => (
+          {documentQuery.isLoading && (
+            <p className="px-2 text-xs text-white/40">Memuat dokumen…</p>
+          )}
+          {!documentQuery.isLoading && documentItems.length === 0 && (
+            <p className="px-2 text-xs text-white/40">
+              Belum ada dokumen yang diunggah
+            </p>
+          )}
+          {documentItems.map((doc) => (
             <DocTab
               key={doc.id}
               doc={doc}
@@ -208,40 +363,70 @@ export default function PptAudio({
         <div className="flex flex-wrap items-center gap-3">
           {activeDoc && (
             <p className="flex items-center gap-2 text-xs text-white/40">
-              <span>{activeDoc.pageCount} Halaman</span>
-              <span aria-hidden="true">•</span>
+              {activeDoc.pageCount > 0 && (
+                <>
+                  <span>{activeDoc.pageCount} Halaman</span>
+                  <span aria-hidden="true">•</span>
+                </>
+              )}
               <span>{activeDoc.durationLabel}</span>
               <span aria-hidden="true">•</span>
               <span
                 className={cn(
                   activeDoc.status === "ready"
                     ? "text-sky-400"
-                    : "text-white/50",
+                    : activeDoc.status === "error"
+                      ? "text-red-300"
+                      : "text-white/50",
                 )}
               >
-                {activeDoc.status === "ready" ? "Selesai" : "Memproses…"}
+                {activeDoc.status === "ready"
+                  ? "Selesai"
+                  : activeDoc.status === "error"
+                    ? "Gagal"
+                    : "Memproses…"}
               </span>
             </p>
           )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.ppt,.pptx,.doc,.docx"
+            onChange={handleFileChange}
+            className="sr-only"
+            aria-label="Pilih dokumen untuk diringkas"
+          />
           <button
             type="button"
-            onClick={onUpload}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.03] px-3 py-1.5 font-inter-500 text-xs text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessing}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.03] px-3 py-1.5 font-inter-500 text-xs text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-wait disabled:opacity-50"
           >
-            <Plus className="size-3.5" />
-            Unggah PDF/PPT Baru
+            {summarizeMutation.isPending ? (
+              <LoaderCircle className="size-3.5 animate-spin" />
+            ) : (
+              <Plus className="size-3.5" />
+            )}
+            {summarizeMutation.isPending
+              ? "Meringkas dokumen…"
+              : "Unggah PDF/PPT Baru"}
           </button>
         </div>
       </div>
 
-      {/* -------------------------------------------------------------- */}
-      {/*  Takeaways + synchronized transcript                           */}
-      {/* -------------------------------------------------------------- */}
       <div className="flex flex-1 flex-col gap-4 lg:min-h-0 lg:flex-row lg:gap-6 lg:overflow-hidden">
         <Panel className="min-h-[420px] lg:min-h-0 lg:w-[340px] lg:shrink-0">
           <PanelHeader icon={Sparkles} title="AI Key Takeaways" />
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {takeaways.map((takeaway) => (
+            {(summarizeMutation.isPending || documentQuery.isLoading) && (
+              <LoadingState />
+            )}
+            {!summarizeMutation.isPending &&
+              !documentQuery.isLoading &&
+              displayTakeaways.length === 0 && (
+                <EmptyState message="Key takeaways akan muncul setelah dokumen selesai diringkas." />
+              )}
+            {displayTakeaways.map((takeaway) => (
               <TakeawayCard
                 key={takeaway.id}
                 takeaway={takeaway}
@@ -264,7 +449,15 @@ export default function PptAudio({
             }
           />
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
-            {transcript.map((paragraph) => {
+            {(summarizeMutation.isPending || documentQuery.isLoading) && (
+              <LoadingState />
+            )}
+            {!summarizeMutation.isPending &&
+              !documentQuery.isLoading &&
+              displayTranscript.length === 0 && (
+                <EmptyState message="Teks dokumen akan ditampilkan di sini." />
+              )}
+            {displayTranscript.map((paragraph) => {
               const active = paragraph.id === activeParagraphId;
               return (
                 <button
@@ -289,21 +482,60 @@ export default function PptAudio({
         </Panel>
       </div>
 
-      {/* -------------------------------------------------------------- */}
-      {/*  Audio player                                                  */}
-      {/* -------------------------------------------------------------- */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <audio
+          ref={audioRef}
+          src={audioUrl ?? undefined}
+          preload="metadata"
+          className="hidden"
+          onLoadedMetadata={(event) => {
+            const duration = event.currentTarget.duration;
+            if (!Number.isFinite(duration)) return;
+            setPlaybackDuration(duration);
+            setDocumentItems((current) =>
+              current.map((document) =>
+                document.id === activeDocId
+                  ? {
+                      ...document,
+                      durationLabel: `${formatTime(duration)} min`,
+                    }
+                  : document,
+              ),
+            );
+          }}
+          onTimeUpdate={(event) => setPosition(event.currentTarget.currentTime)}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+          onError={() => {
+            pendingPlayRef.current = false;
+            setIsPlaying(false);
+            toast.error("Audio tidak dapat dimuat oleh browser.");
+          }}
+          onCanPlay={(event) => {
+            if (!pendingPlayRef.current) return;
+            pendingPlayRef.current = false;
+            void event.currentTarget.play().catch(() => {
+              toast.error("Browser tidak dapat memutar audio ini.");
+            });
+          }}
+        >
+          <track kind="captions" />
+        </audio>
         <div className="flex items-center gap-1">
-          <IconButton label="Ke awal" onClick={() => setPosition(0)}>
+          <IconButton label="Ke awal" onClick={() => seekAudio(0)}>
             <SkipBack className="size-4" />
           </IconButton>
           <button
             type="button"
             onClick={togglePlay}
+            disabled={!narrationText || synthesizeMutation.isPending}
             aria-label={isPlaying ? "Jeda" : "Putar"}
-            className="grid size-11 place-items-center rounded-full bg-white text-primary-dark transition-transform hover:scale-105"
+            className="grid size-11 place-items-center rounded-full bg-white text-primary-dark transition-transform hover:scale-105 disabled:cursor-wait disabled:opacity-40 disabled:hover:scale-100"
           >
-            {isPlaying ? (
+            {synthesizeMutation.isPending ? (
+              <LoaderCircle className="size-5 animate-spin" />
+            ) : isPlaying ? (
               <Pause className="size-5" />
             ) : (
               <Play className="size-5 translate-x-px" />
@@ -312,8 +544,8 @@ export default function PptAudio({
           <IconButton
             label="Ke akhir"
             onClick={() => {
-              setPosition(durationSeconds);
-              setIsPlaying(false);
+              seekAudio(playbackDuration);
+              audioRef.current?.pause();
             }}
           >
             <SkipForward className="size-4" />
@@ -334,15 +566,16 @@ export default function PptAudio({
             <input
               type="range"
               min={0}
-              max={durationSeconds}
+              max={playbackDuration || 0}
               value={position}
-              onChange={(e) => setPosition(Number(e.target.value))}
+              onChange={(event) => seekAudio(Number(event.target.value))}
+              disabled={!audioUrl}
               aria-label="Posisi pemutaran"
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
             />
           </div>
           <span className={cn(MONO, "text-xs tabular-nums text-white/50")}>
-            {formatTime(durationSeconds)}
+            {formatTime(playbackDuration)}
           </span>
         </div>
 
@@ -357,19 +590,34 @@ export default function PptAudio({
           >
             {formatSpeed(speed)}x
           </button>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-cyan/30 bg-cyan/10 px-2.5 py-1 font-inter-500 text-xs text-cyan">
+          <label className="inline-flex items-center gap-1.5 rounded-md border border-cyan/30 bg-cyan/10 px-2.5 py-1 font-inter-500 text-xs text-cyan">
             <Mic className="size-3" />
-            AI Narrator
-          </span>
+            <span className="sr-only">Pilih suara AI Narrator</span>
+            <select
+              value={activeVoiceId}
+              onChange={handleVoiceChange}
+              disabled={voicesQuery.isLoading || synthesizeMutation.isPending}
+              className="max-w-44 bg-transparent text-cyan outline-none disabled:opacity-50"
+            >
+              {voices.length === 0 && (
+                <option value="aura-asteria-en">AI Narrator</option>
+              )}
+              {voices.map((voice) => (
+                <option
+                  key={voice.id}
+                  value={voice.id}
+                  className="bg-primary-dark"
+                >
+                  {voice.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </div>
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Local building blocks                                                      */
-/* -------------------------------------------------------------------------- */
 
 function Panel({
   className,
@@ -419,7 +667,12 @@ function DocTab({
   active: boolean;
   onClick: () => void;
 }) {
-  const Icon = doc.kind === "pdf" ? FileText : Presentation;
+  const Icon =
+    doc.status === "error"
+      ? AlertCircle
+      : doc.kind === "pdf"
+        ? FileText
+        : Presentation;
   return (
     <button
       type="button"
@@ -433,10 +686,34 @@ function DocTab({
       )}
     >
       <Icon
-        className={cn("size-3.5", active ? "text-sky-400" : "text-white/40")}
+        className={cn(
+          "size-3.5",
+          doc.status === "error"
+            ? "text-red-300"
+            : active
+              ? "text-sky-400"
+              : "text-white/40",
+        )}
       />
       {doc.name}
     </button>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-white/40">
+      <LoaderCircle className="size-4 animate-spin" />
+      Memproses dokumen…
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <p className="flex min-h-32 items-center justify-center text-center text-sm leading-relaxed text-white/35">
+      {message}
+    </p>
   );
 }
 

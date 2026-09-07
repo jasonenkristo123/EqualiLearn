@@ -3,8 +3,6 @@ import { extractToken } from "./auth-cookie";
 import { clearToken, getToken, setToken } from "./token";
 
 export const api = axios.create({
-  // Requests go through the Next.js rewrite in next.config.ts, which proxies
-  // `/api/*` to NEXT_PUBLIC_BASE_API_URL — keeps calls same-origin (no CORS).
   baseURL: "/api",
   withCredentials: true,
   headers: {
@@ -12,7 +10,6 @@ export const api = axios.create({
   },
 });
 
-// Attach the bearer token from the cookie to every outgoing request.
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
@@ -21,7 +18,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Persist a token returned by any `auth/*` endpoint; drop it on 401.
 api.interceptors.response.use(
   (response) => {
     if ((response.config.url ?? "").includes("auth/")) {

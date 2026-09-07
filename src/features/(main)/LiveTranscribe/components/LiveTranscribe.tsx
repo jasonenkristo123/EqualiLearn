@@ -11,8 +11,10 @@ import {
   Zap,
 } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useSpeechToText } from "../hooks/useSpeechToText";
+import type { SpeechToTextStatus } from "../type/speech-to-text.type";
 
 export interface TranscriptEntry {
   id: string;
@@ -32,30 +34,6 @@ export interface SummaryData {
   keyTerms: string[];
   actionItems: ActionItem[];
 }
-
-const MOCK_ENTRIES: TranscriptEntry[] = [
-  {
-    id: "1",
-    timestamp: "10:35 AM",
-    text: "Okay, so let's start by looking at the router architecture we discussed last week. The main challenge we have is handling the latency between the API Gateway and the microservices layer.",
-  },
-  {
-    id: "2",
-    timestamp: "10:37 AM",
-    text: "If we implement a caching mechanism at the edge, we can significantly reduce the load. Sarah, what were the numbers on the Redis implementation test?",
-  },
-  {
-    id: "3",
-    timestamp: "10:39 AM",
-    text: "The test showed a 40% reduction in response time. However, we need to ensure the cache invalidation strategy is rock solid before rolling it out to production.",
-  },
-  {
-    id: "4",
-    timestamp: "10:42 AM",
-    text: "I completely agree. Let's make that our first action item. We need to document the invalidation rules by Friday. John, can you take the lead on drafting that document?",
-    interim: true,
-  },
-];
 
 const MOCK_SUMMARY: SummaryData = {
   takeaways: [
@@ -102,19 +80,64 @@ interface LiveTranscribeProps {
 }
 
 export default function LiveTranscribe({
-  entries = MOCK_ENTRIES,
+  entries,
   summary = MOCK_SUMMARY,
-  initialElapsedSeconds = 765,
+  initialElapsedSeconds = 0,
   onGenerateSummary,
   onExport,
   onToggleRecording,
 }: LiveTranscribeProps) {
-  const [isRecording, setIsRecording] = useState(true);
   const [elapsed, setElapsed] = useState(initialElapsedSeconds);
   // Local until the WS layer owns action-item state; toggling is optimistic.
   const [actionItems, setActionItems] = useState(summary.actionItems);
 
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const {
+    status,
+    transcripts,
+    interim,
+    finalText,
+    sessionId,
+    errorMessage,
+    start,
+    stop,
+  } = useSpeechToText("id-ID");
+  const isRecording = status === "recording";
+  const isActive =
+    isRecording ||
+    status === "connecting" ||
+    status === "requesting-permission";
+  const isStopping = status === "stopping";
+
+  const realtimeEntries = useMemo<TranscriptEntry[]>(() => {
+    const finalEntries = transcripts.map((transcript) => ({
+      id: transcript.id,
+      timestamp: formatTranscriptTimestamp(transcript.timestamp),
+      text: transcript.text,
+    }));
+
+    if (!interim) {
+      if (finalEntries.length > 0 || !finalText.trim()) return finalEntries;
+      return [
+        {
+          id: `${sessionId ?? "transcript"}-finished`,
+          timestamp: formatTranscriptTimestamp(new Date().toISOString()),
+          text: finalText,
+        },
+      ];
+    }
+    return [
+      ...finalEntries,
+      {
+        id: `${interim.session_id}-interim`,
+        timestamp: formatTranscriptTimestamp(interim.timestamp),
+        text: interim.text,
+        interim: true,
+      },
+    ];
+  }, [finalText, interim, sessionId, transcripts]);
+
+  const visibleEntries = entries ?? realtimeEntries;
 
   // Tick the recording timer while recording.
   useEffect(() => {
@@ -124,18 +147,24 @@ export default function LiveTranscribe({
   }, [isRecording]);
 
   // Keep the transcript pinned to the newest line as entries stream in.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: entries is the trigger, not a value read inside
   useEffect(() => {
+    if (visibleEntries.length === 0) return;
     const el = transcriptRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [entries]);
+  }, [visibleEntries]);
 
-  const toggleRecording = () => {
-    setIsRecording((prev) => {
-      const next = !prev;
-      onToggleRecording?.(next);
-      return next;
-    });
+  useEffect(() => {
+    onToggleRecording?.(isRecording);
+  }, [isRecording, onToggleRecording]);
+
+  const toggleRecording = async () => {
+    if (isActive) {
+      await stop();
+      return;
+    }
+
+    setElapsed(0);
+    await start();
   };
 
   const toggleActionItem = (id: string) => {
@@ -160,7 +189,7 @@ export default function LiveTranscribe({
               )}
             />
             <span className="font-inter-600 text-sm text-white">
-              Live Recording
+              {STATUS_LABELS[status]}
             </span>
             <span className={cn(MONO, "text-xs tabular-nums text-white/40")}>
               {formatElapsed(elapsed)}
@@ -169,14 +198,15 @@ export default function LiveTranscribe({
           <button
             type="button"
             onClick={toggleRecording}
-            aria-pressed={isRecording}
-            aria-label={isRecording ? "Jeda perekaman" : "Mulai perekaman"}
-            className="grid size-9 place-items-center rounded-full border border-white/15 text-white transition-colors hover:bg-white/5"
+            disabled={isStopping}
+            aria-pressed={isActive}
+            aria-label={isActive ? "Hentikan perekaman" : "Mulai perekaman"}
+            className="grid size-9 place-items-center rounded-full border border-white/15 text-white transition-colors hover:bg-white/5 disabled:cursor-wait disabled:opacity-40"
           >
-            {isRecording ? (
-              <Mic className="size-4" />
-            ) : (
+            {isActive ? (
               <MicOff className="size-4" />
+            ) : (
+              <Mic className="size-4" />
             )}
           </button>
         </header>
@@ -189,7 +219,23 @@ export default function LiveTranscribe({
           ref={transcriptRef}
           className="flex-1 space-y-5 overflow-y-auto px-5 py-5"
         >
-          {entries.map((entry) => (
+          {errorMessage && (
+            <p
+              role="alert"
+              className="rounded-lg bg-red-400/10 p-3 text-sm text-red-300"
+            >
+              {errorMessage}
+            </p>
+          )}
+
+          {!errorMessage && visibleEntries.length === 0 && (
+            <p className="py-12 text-center text-sm text-white/35">
+              Tekan tombol mikrofon untuk mulai merekam dan menampilkan
+              transkrip.
+            </p>
+          )}
+
+          {visibleEntries.map((entry) => (
             <article
               key={entry.id}
               className={cn(
@@ -311,10 +357,6 @@ export default function LiveTranscribe({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Local building blocks                                                      */
-/* -------------------------------------------------------------------------- */
-
 function Panel({
   className,
   children,
@@ -409,4 +451,24 @@ function formatElapsed(totalSeconds: number) {
   return [hours, minutes, seconds]
     .map((n) => String(n).padStart(2, "0"))
     .join(":");
+}
+
+const STATUS_LABELS: Record<SpeechToTextStatus, string> = {
+  idle: "Siap Merekam",
+  "requesting-permission": "Meminta Izin Mikrofon",
+  connecting: "Menghubungkan",
+  recording: "Live Recording",
+  stopping: "Menghentikan Rekaman",
+  stopped: "Rekaman Selesai",
+  error: "Perekaman Bermasalah",
+};
+
+function formatTranscriptTimestamp(timestamp: string) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+
+  return new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }

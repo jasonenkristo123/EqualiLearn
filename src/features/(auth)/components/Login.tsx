@@ -1,8 +1,16 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { type FormEvent, useState } from "react";
+import {
+  getApiErrorMessage,
+  startGoogleLogin,
+  useLogin,
+} from "../hooks/use-auth";
+import { loginSchema, toFieldErrors } from "../schema/auth.schema";
+import AuthField from "./AuthField";
 import AuthTabs from "./AuthTabs";
 
 function GoogleIcon() {
@@ -29,6 +37,25 @@ function GoogleIcon() {
 }
 
 export default function Login() {
+  const login = useLogin();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const pending = login.isPending;
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const parsed = loginSchema.safeParse({ email, password, remember });
+    if (!parsed.success) {
+      setErrors(toFieldErrors(parsed.error));
+      return;
+    }
+    setErrors({});
+    login.mutate(parsed.data);
+  };
+
   return (
     <main className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-primary-dark px-4 py-12">
       <Image
@@ -61,40 +88,48 @@ export default function Login() {
 
         <AuthTabs active="masuk" />
 
-        <form
-          className="mt-6 flex flex-col gap-4"
-          onSubmit={(e) => e.preventDefault()}
-        >
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="sr-only">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="nama@gmail.com"
-              className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white transition-colors placeholder:text-white/30 focus:border-white/25 focus:outline-none"
-            />
-          </div>
+        {login.isError && (
+          <p
+            role="alert"
+            className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs text-red-300"
+          >
+            {getApiErrorMessage(login.error)}
+          </p>
+        )}
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="sr-only">
-              Kata sandi
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="Masukkan kata sandi"
-              className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white transition-colors placeholder:text-white/30 focus:border-white/25 focus:outline-none"
-            />
-          </div>
+        <form
+          onSubmit={onSubmit}
+          noValidate
+          className="mt-6 flex flex-col gap-4"
+        >
+          <AuthField
+            id="email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            placeholder="nama@gmail.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={errors.email}
+          />
+
+          <AuthField
+            id="password"
+            label="Kata sandi"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Masukkan kata sandi"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={errors.password}
+          />
 
           <div className="flex items-center justify-between text-xs">
             <label className="flex cursor-pointer items-center gap-2 text-white/60">
               <input
                 type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
                 className="size-4 rounded border-white/20 bg-white/5 accent-cyan"
               />
               Ingat saya
@@ -109,10 +144,17 @@ export default function Login() {
 
           <button
             type="submit"
-            className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-inter-600 text-sm text-primary-dark transition-colors hover:bg-white/90"
+            disabled={pending}
+            className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-inter-600 text-sm text-primary-dark transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Lanjutkan
-            <ArrowRight className="size-4" />
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <>
+                Lanjutkan
+                <ArrowRight className="size-4" />
+              </>
+            )}
           </button>
         </form>
 
@@ -124,7 +166,9 @@ export default function Login() {
 
         <button
           type="button"
-          className="inline-flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-6 py-3 text-sm text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white"
+          onClick={startGoogleLogin}
+          disabled={pending}
+          className="inline-flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-6 py-3 text-sm text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-60"
         >
           <GoogleIcon />
           Lanjutkan Dengan Google

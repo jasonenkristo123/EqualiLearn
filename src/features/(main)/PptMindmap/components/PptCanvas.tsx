@@ -33,6 +33,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, ComponentType, ReactNode, SVGProps } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -505,6 +506,14 @@ export default function PptCanvas({
       <div className="relative flex h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
         <div className="relative min-w-0 flex-1">
           <MindmapCanvas onExport={onExport} />
+          {initialDocumentId && (
+            <Link
+              href={`/canvas-discussion?documentId=${encodeURIComponent(initialDocumentId)}`}
+              className="absolute right-4 top-4 z-10 rounded-lg border border-cyan/30 bg-[#0b1220] px-3 py-2 text-sm text-cyan"
+            >
+              Bagikan ke grup
+            </Link>
+          )}
         </div>
 
         {sourceOpen ? (

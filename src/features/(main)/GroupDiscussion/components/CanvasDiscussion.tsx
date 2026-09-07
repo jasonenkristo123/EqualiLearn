@@ -1,620 +1,771 @@
 "use client";
 
 import {
-  Check,
-  ChevronDown,
-  ChevronsLeft,
-  ChevronsRight,
-  Copy,
-  Download,
-  Link2,
-  Mic,
-  Play,
-  Plus,
-  Send,
-  Settings,
-  Share2,
-  Sparkles,
-  UserPlus,
-  Volume2,
-  Zap,
-} from "lucide-react";
-import type { ComponentType, FormEvent, ReactNode, SVGProps } from "react";
-import { useEffect, useRef, useState } from "react";
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import type {
-  AccessibilityAssist,
-  DiscussionMessage,
-  DiscussionMode,
-  DiscussionRoom,
-  Participant,
-  SharedMapEdge,
-  SharedMapNode,
-} from "../type/discussion.type";
+import { getDocument, getDocumentErrorMessage } from "@/shared/api/documents";
+import { useGroupChat } from "../hooks/useGroupChat";
+import {
+  addMember,
+  type ChatMessage,
+  createGroup,
+  getGroup,
+  getMessages,
+  groupKeys,
+  listGroups,
+  removeMember,
+} from "../service/groups";
 
-/* -------------------------------------------------------------------------- */
-/*  Static presentation config                                                 */
-/* -------------------------------------------------------------------------- */
-
-const MONO = "font-[ui-monospace,SFMono-Regular,Menlo,monospace]";
-
-const MODE_LABELS: Record<DiscussionMode, string> = {
-  standar: "Standar",
-  fokus: "Mode Fokus",
-  santai: "Santai",
-};
-
-const ASSIST_META: Record<
-  AccessibilityAssist,
-  { icon: ComponentType<SVGProps<SVGSVGElement>>; label: string; tone: string }
-> = {
-  "voice-to-text": {
-    icon: Zap,
-    label: "AI Voice-to-Text for Deaf Peer",
-    tone: "text-sky-300",
-  },
-  "text-to-speech": {
-    icon: Volume2,
-    label: "AI Text-to-Speech for Blind Peer",
-    tone: "text-cyan",
-  },
-};
-
-const VOICE_BARS = [
-  6, 10, 14, 9, 16, 7, 12, 15, 8, 13, 6, 11, 14, 9, 12, 7,
-].map((height, i) => ({ id: `vb-${i}`, height }));
-
-/* -------------------------------------------------------------------------- */
-/*  Mock data — replace with props fed by the GroupDiscussion service.        */
-/* -------------------------------------------------------------------------- */
-
-const MOCK_ROOM: DiscussionRoom = {
-  id: "room-1",
-  name: "Kelompok 3",
-  code: "EQL-8921",
-  mode: "standar",
-};
-
-const MOCK_PARTICIPANTS: Participant[] = [
-  { id: "p-budi", name: "Budi", color: "#38bdf8" },
-  { id: "p-siti", name: "Siti", color: "#f472b6" },
-  { id: "p-aland", name: "Aland", color: "#34d399" },
-];
-
-const MOCK_MESSAGES: DiscussionMessage[] = [
-  {
-    id: "m-1",
-    authorId: "p-budi",
-    authorName: "Budi",
-    timestamp: "10:42 AM",
-    kind: "voice",
-    voiceDurationLabel: "0:12",
-    text: "Saya pikir kita perlu menambahkan node keamanan di bagian arsitektur server. Apakah Siti setuju?",
-    assist: "voice-to-text",
-  },
-  {
-    id: "m-2",
-    authorId: "p-siti",
-    authorName: "Siti",
-    timestamp: "10:43 AM",
-    kind: "text",
-    own: true,
-    text: "Setuju, Budi. Saya akan tambahkan detail enkripsi di node tersebut sekarang.",
-    assist: "text-to-speech",
-  },
-];
-
-const MOCK_MAP_NODES: SharedMapNode[] = [
-  { id: "n-1", label: "Database Nodes", x: 24, y: 24 },
-  {
-    id: "n-2",
-    label: "Sistem Terdistribusi",
-    caption: "Core Architecture",
-    x: 46,
-    y: 52,
-    variant: "primary",
-  },
-  {
-    id: "n-3",
-    label: "Security / Encryption",
-    x: 80,
-    y: 72,
-    editingBy: "p-siti",
-  },
-];
-
-const MOCK_MAP_EDGES: SharedMapEdge[] = [
-  { id: "e-1", source: "n-1", target: "n-2" },
-  { id: "e-2", source: "n-2", target: "n-3" },
-];
-
-/* -------------------------------------------------------------------------- */
-/*  Component                                                                  */
-/* -------------------------------------------------------------------------- */
-
-interface CanvasDiscussionProps {
-  room?: DiscussionRoom;
-  participants?: Participant[];
-  messages?: DiscussionMessage[];
-  mapNodes?: SharedMapNode[];
-  mapEdges?: SharedMapEdge[];
-  editingCount?: number;
-  currentUserId?: string;
-  onInvite?: () => void;
-  onShareCanvas?: () => void;
-}
+const field =
+  "w-full rounded-lg border border-white/20 bg-[#0b1220] px-3 py-2 text-sm text-white placeholder:text-white/45";
+const button =
+  "rounded-lg border border-white/20 px-3 py-2 text-sm text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45";
+type Mode = "standard" | "focus" | "read-aloud";
 
 export default function CanvasDiscussion({
-  room = MOCK_ROOM,
-  participants = MOCK_PARTICIPANTS,
-  messages: initialMessages = MOCK_MESSAGES,
-  mapNodes = MOCK_MAP_NODES,
-  mapEdges = MOCK_MAP_EDGES,
-  editingCount = 3,
-  currentUserId = "p-siti",
-  onInvite,
-  onShareCanvas,
-}: CanvasDiscussionProps) {
-  const [messages, setMessages] = useState(initialMessages);
-  const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState<DiscussionMode>(room.mode);
-  const [mapOpen, setMapOpen] = useState(true);
-  const [holding, setHolding] = useState(false);
+  initialGroupId = "",
+  initialDocumentId = "",
+}: {
+  initialGroupId?: string;
+  initialDocumentId?: string;
+}) {
+  const router = useRouter();
+  const client = useQueryClient();
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+  const groups = useInfiniteQuery({
+    queryKey: groupKeys.lists,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => listGroups(pageParam),
+    getNextPageParam: (page, pages) =>
+      page.hasMore ? pages.length + 1 : undefined,
+    retry: false,
+  });
+  const create = useMutation({ mutationFn: createGroup });
+  const rooms = [
+    ...new Map(
+      groups.data?.pages
+        .flatMap((page) => page.items)
+        .map((group) => [group.id, group]),
+    ).values(),
+  ];
 
-  const listRef = useRef<HTMLDivElement>(null);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: messages is the trigger, not a value read inside
-  useEffect(() => {
-    const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
-
-  const sendMessage = (event: FormEvent) => {
-    event.preventDefault();
-    const body = draft.trim();
-    if (!body) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `local-${Date.now()}`,
-        authorId: currentUserId,
-        authorName: "Anda",
-        timestamp: new Intl.DateTimeFormat("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(new Date()),
-        kind: "text",
-        text: body,
-        own: true,
-      },
-    ]);
-    setDraft("");
+  const selectGroup = (id: string) => {
+    const params = new URLSearchParams({ groupId: id });
+    if (initialDocumentId) params.set("documentId", initialDocumentId);
+    router.push("/canvas-discussion?" + params);
   };
 
-  return (
-    <div className="flex flex-col gap-4 p-4 lg:h-[calc(100dvh-3.5rem)] lg:flex-row lg:gap-6 lg:overflow-hidden lg:p-6">
-      {/* ---------------------------------------------------------------- */}
-      {/*  Group chat                                                      */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] lg:min-h-0 lg:w-[440px] lg:shrink-0">
-        <ChatHeader
-          room={room}
-          participants={participants}
-          mode={mode}
-          onModeChange={setMode}
-          onInvite={onInvite}
-        />
-
-        <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto p-4">
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
-        </div>
-
-        <div className="border-t border-white/10 p-3">
-          <form onSubmit={sendMessage} className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Ketik pesan…"
-                aria-label="Ketik pesan"
-                className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-2.5 pr-10 pl-4 text-sm text-white transition-colors placeholder:text-white/30 focus:border-white/25 focus:outline-none"
-              />
-              <button
-                type="button"
-                aria-label="Rekam pesan suara"
-                className="absolute top-1/2 right-2 -translate-y-1/2 text-white/40 transition-colors hover:text-white"
-              >
-                <Mic className="size-4" />
-              </button>
-            </div>
-            <button
-              type="submit"
-              aria-label="Kirim pesan"
-              className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-500 text-white transition-colors hover:bg-sky-400"
-            >
-              <Send className="size-4" />
-            </button>
-          </form>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onPointerDown={() => setHolding(true)}
-              onPointerUp={() => setHolding(false)}
-              onPointerLeave={() => setHolding(false)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-inter-500 text-xs transition-colors",
-                holding
-                  ? "border-sky-400/50 bg-sky-400/10 text-sky-300"
-                  : "border-white/15 bg-white/[0.03] text-white/70 hover:text-white",
-              )}
-            >
-              <Mic className="size-3.5" />
-              Hold to Speak
-            </button>
-            <button
-              type="button"
-              onClick={onShareCanvas}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan/30 bg-cyan/10 px-3 py-1.5 font-inter-500 text-xs text-cyan transition-colors hover:bg-cyan/15"
-            >
-              <Share2 className="size-3.5" />
-              Bagikan Kanvas
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- */}
-      {/*  Live shared mind map                                            */}
-      {/* ---------------------------------------------------------------- */}
-      {mapOpen ? (
-        <section className="relative hidden min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] lg:flex">
-          <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <div>
-              <h2 className="flex items-center gap-1.5 font-inter-600 text-sm text-white">
-                <Sparkles className="size-4 text-lightblue" />
-                Live Shared Mind Map
-              </h2>
-              <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-400">
-                <span className="size-1.5 rounded-full bg-emerald-400" />
-                {editingCount} Editing
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMapOpen(false)}
-              className="inline-flex items-center gap-1 text-xs text-white/50 transition-colors hover:text-white"
-            >
-              <ChevronsRight className="size-3.5" />
-              Sembunyikan Kanvas
-            </button>
-          </header>
-
-          <SharedMap
-            nodes={mapNodes}
-            edges={mapEdges}
-            participants={participants}
-          />
-        </section>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setMapOpen(true)}
-          aria-label="Tampilkan kanvas"
-          className="absolute top-1/2 right-0 hidden -translate-y-1/2 rounded-l-lg border border-r-0 border-white/10 bg-[#0b1220] px-1.5 py-3 text-white/40 transition-colors hover:text-white lg:block"
-        >
-          <ChevronsLeft className="size-4" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Chat pieces                                                                */
-/* -------------------------------------------------------------------------- */
-
-function ChatHeader({
-  room,
-  participants,
-  mode,
-  onModeChange,
-  onInvite,
-}: {
-  room: DiscussionRoom;
-  participants: Participant[];
-  mode: DiscussionMode;
-  onModeChange: (mode: DiscussionMode) => void;
-  onInvite?: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  const copyCode = async () => {
+  const submitGroup = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
+    const name = String(values.get("name") ?? "").trim();
+    const emails = [
+      ...new Set(
+        String(values.get("emails") ?? "")
+          .split(/[,;\s]+/)
+          .filter(Boolean),
+      ),
+    ];
+    if (!name) return;
+    if (emails.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+      setError("Periksa alamat email anggota.");
+      return;
+    }
+    setError("");
     try {
-      await navigator.clipboard.writeText(room.code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard unavailable (e.g. insecure context) — no-op for the slice.
+      const room = await create.mutateAsync({
+        name,
+        description: String(values.get("description") ?? "").trim(),
+        member_emails: emails,
+        member_user_ids: [],
+      });
+      client.setQueryData(groupKeys.detail(room.id), room);
+      void client.invalidateQueries({ queryKey: groupKeys.lists });
+      setCreating(false);
+      selectGroup(room.id);
+    } catch (cause) {
+      setError(getDocumentErrorMessage(cause));
     }
   };
 
   return (
-    <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
-      <h2 className="font-inter-600 text-sm text-white">{room.name}</h2>
-
-      <button
-        type="button"
-        onClick={copyCode}
-        className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[11px] text-white/50 transition-colors hover:text-white"
-      >
-        {room.code}
-        {copied ? (
-          <Check className="size-3 text-emerald-400" />
-        ) : (
-          <Copy className="size-3" />
-        )}
-      </button>
-
-      <AvatarStack participants={participants} />
-
-      <button
-        type="button"
-        onClick={onInvite}
-        className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/[0.03] px-2 py-1 text-[11px] text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white"
-      >
-        <UserPlus className="size-3" />
-        Undang
-      </button>
-
-      <div className="relative ml-auto">
-        <Settings className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-white/40" />
-        <select
-          value={mode}
-          onChange={(e) => onModeChange(e.target.value as DiscussionMode)}
-          aria-label="Mode diskusi"
-          className="appearance-none rounded-md border border-white/15 bg-white/[0.03] py-1 pr-7 pl-7 text-[11px] text-white/80 transition-colors hover:bg-white/[0.06] focus:border-white/25 focus:outline-none"
+    <div className="space-y-4 p-4 text-white lg:p-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl">Ruang Lingkar</h1>
+          <p className="text-sm text-white/65">
+            Diskusikan materi dan bagikan mind map bersama kelompok.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className={button}
+            type="button"
+            onClick={() => setCreating(!creating)}
+          >
+            Buat grup
+          </button>
+          <button
+            className={button}
+            type="button"
+            disabled
+            title="Fitur bergabung dengan kode belum tersedia"
+          >
+            Gabung grup · Segera hadir
+          </button>
+        </div>
+      </header>
+      <p className="text-xs text-white/60">
+        Untuk bergabung saat ini, minta anggota grup menambahkan email Anda.
+      </p>
+      {creating && (
+        <form
+          onSubmit={submitGroup}
+          className="grid max-w-xl gap-3 rounded-xl border border-white/15 p-4"
         >
-          {(Object.keys(MODE_LABELS) as DiscussionMode[]).map((key) => (
-            <option key={key} value={key} className="bg-primary-dark">
-              {MODE_LABELS[key]}
-            </option>
+          <h2>Buat grup belajar</h2>
+          <label className="text-sm">
+            Nama grup
+            <input required maxLength={120} name="name" className={field} />
+          </label>
+          <label className="text-sm">
+            Deskripsi
+            <textarea name="description" maxLength={2000} className={field} />
+          </label>
+          <label className="text-sm">
+            Email anggota (opsional)
+            <textarea
+              name="emails"
+              placeholder="bob@example.com, charlie@example.com"
+              className={field}
+            />
+          </label>
+          <p className="text-xs text-white/65">
+            Pisahkan alamat email dengan koma atau baris baru.
+          </p>
+          {error && <ErrorNotice message={error} />}
+          <button className={button} disabled={create.isPending} type="submit">
+            {create.isPending ? "Membuat grup…" : "Buat"}
+          </button>
+        </form>
+      )}
+      <div className="grid items-start gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <nav
+          aria-label="Grup Anda"
+          className="space-y-2 rounded-xl border border-white/15 p-3"
+        >
+          <div className="flex items-center justify-between">
+            <h2>Grup Anda</h2>
+            <button
+              type="button"
+              className={button}
+              disabled={groups.isFetching}
+              onClick={() => void groups.refetch()}
+            >
+              Muat ulang
+            </button>
+          </div>
+          {groups.isPending && <output>Memuat grup…</output>}
+          {groups.error && (
+            <ErrorNotice message={getDocumentErrorMessage(groups.error)} />
+          )}
+          {groups.isSuccess && rooms.length === 0 && (
+            <p className="py-6 text-sm text-white/65">
+              Belum ada grup. Buat grup pertama Anda atau minta undangan melalui
+              email.
+            </p>
+          )}
+          {rooms.map((room) => (
+            <button
+              type="button"
+              key={room.id}
+              aria-pressed={room.id === initialGroupId}
+              onClick={() => selectGroup(room.id)}
+              className={cn(
+                "w-full rounded-lg p-3 text-left text-sm",
+                room.id === initialGroupId
+                  ? "bg-sky-500/20 ring-1 ring-sky-400"
+                  : "bg-white/5 hover:bg-white/10",
+              )}
+            >
+              {room.name}
+            </button>
           ))}
-        </select>
-        <ChevronDown className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 text-white/40" />
+          {groups.hasNextPage && (
+            <button
+              type="button"
+              className={button}
+              disabled={groups.isFetchingNextPage}
+              onClick={() => void groups.fetchNextPage()}
+            >
+              Grup lainnya
+            </button>
+          )}
+        </nav>
+        {initialGroupId ? (
+          <GroupRoom
+            key={initialGroupId}
+            id={initialGroupId}
+            documentId={initialDocumentId}
+          />
+        ) : (
+          <section className="rounded-xl border border-dashed border-white/20 px-6 py-20 text-center">
+            <h2 className="text-lg">Pilih atau buat ruang diskusi</h2>
+            <p className="mt-2 text-sm text-white/65">
+              Pesan dan mind map kelompok akan tampil di sini.
+            </p>
+          </section>
+        )}
       </div>
-    </header>
-  );
-}
-
-function AvatarStack({ participants }: { participants: Participant[] }) {
-  return (
-    <div className="flex -space-x-2">
-      {participants.slice(0, 3).map((participant) => (
-        <span
-          key={participant.id}
-          title={participant.name}
-          className="grid size-6 place-items-center rounded-full border-2 border-primary-dark text-[10px] font-inter-600 text-primary-dark"
-          style={{ backgroundColor: participant.color }}
-        >
-          {participant.name.charAt(0)}
-        </span>
-      ))}
     </div>
   );
 }
 
-function MessageBubble({ message }: { message: DiscussionMessage }) {
-  const { own, authorName, timestamp } = message;
+function GroupRoom({ id, documentId }: { id: string; documentId: string }) {
+  const client = useQueryClient();
+  const room = useQuery({
+    queryKey: groupKeys.detail(id),
+    queryFn: () => getGroup(id),
+    retry: false,
+  });
+  const history = useInfiniteQuery({
+    queryKey: groupKeys.messages(id),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => getMessages(id, pageParam),
+    getNextPageParam: (page, pages) =>
+      page.hasMore ? pages.length + 1 : undefined,
+    enabled: room.isSuccess,
+    retry: false,
+    refetchInterval: 15000,
+  });
+  const chat = useGroupChat(id);
+  const [mode, setMode] = useState<Mode>("standard");
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [showMembers, setShowMembers] = useState(false);
+  const [removing, setRemoving] = useState("");
+  const [previewId, setPreviewId] = useState(documentId);
+  const invite = useMutation({
+    mutationFn: (email: string) => addMember(id, email),
+  });
+  const remove = useMutation({
+    mutationFn: (userId: string) => removeMember(id, userId),
+  });
+  const messages = [
+    ...new Map(
+      history.data?.pages
+        .flatMap((page) => page.items)
+        .filter((message) => message.groupId === id)
+        .map((message) => [message.id, message]),
+    ).values(),
+  ].sort(
+    (a, b) =>
+      a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+  );
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("equalilearn-discussion-mode");
+      if (saved === "standard" || saved === "focus" || saved === "read-aloud")
+        setMode(saved);
+    } catch {
+      /* Preferences remain usable without storage. */
+    }
+    return () => window.speechSynthesis?.cancel();
+  }, []);
+
+  const changeMode = (value: Mode) => {
+    setMode(value);
+    window.speechSynthesis?.cancel();
+    try {
+      localStorage.setItem("equalilearn-discussion-mode", value);
+    } catch {
+      /* Optional preference. */
+    }
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!draft.trim()) return;
+    setError("");
+    try {
+      chat.send(draft.trim());
+      setNotice(
+        "Pesan dikirim ke koneksi. Pesan akan tampil setelah tersimpan di riwayat grup.",
+      );
+      // Keep the draft: socket.send alone does not acknowledge delivery.
+    } catch (cause) {
+      setError(getDocumentErrorMessage(cause));
+    }
+  };
+
+  const updateMembers = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const email = String(new FormData(form).get("email") ?? "").trim();
+    setError("");
+    try {
+      await invite.mutateAsync(email);
+      await client.invalidateQueries({ queryKey: groupKeys.detail(id) });
+      form.reset();
+      setNotice("Anggota ditambahkan.");
+    } catch (cause) {
+      setError(getDocumentErrorMessage(cause));
+    }
+  };
+
+  const confirmRemove = async () => {
+    setError("");
+    try {
+      await remove.mutateAsync(removing);
+      setRemoving("");
+      await client.invalidateQueries({ queryKey: groupKeys.detail(id) });
+      void client.invalidateQueries({ queryKey: groupKeys.lists });
+      setNotice("Anggota dikeluarkan dari grup.");
+    } catch (cause) {
+      setError(getDocumentErrorMessage(cause));
+    }
+  };
+
+  if (room.isPending) return <output>Memuat ruang diskusi…</output>;
+  if (room.isError)
+    return (
+      <div>
+        <ErrorNotice message={getDocumentErrorMessage(room.error)} />
+        <button
+          type="button"
+          className={button}
+          onClick={() => void room.refetch()}
+        >
+          Coba lagi
+        </button>
+      </div>
+    );
 
   return (
-    <div className={cn("flex flex-col", own ? "items-end" : "items-start")}>
-      <p className="mb-1 px-1 text-[11px] text-white/40">
-        {own ? (
-          <>
-            {timestamp} <span className="text-white/25">•</span> {authorName}
-          </>
-        ) : (
-          <>
-            {authorName} <span className="text-white/25">•</span> {timestamp}
-          </>
+    <section className="min-w-0 space-y-4">
+      <header className="space-y-3 rounded-xl border border-white/15 p-4">
+        <h2 className="text-lg">{room.data.name}</h2>
+        {room.data.description && (
+          <p className="text-sm text-white/65">{room.data.description}</p>
         )}
-      </p>
-
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className={button}
+            onClick={() => setShowMembers(!showMembers)}
+            aria-expanded={showMembers}
+          >
+            Kelola anggota
+          </button>
+          <label className="text-sm">
+            Tampilan saya{" "}
+            <select
+              className={field}
+              value={mode}
+              onChange={(event) => changeMode(event.target.value as Mode)}
+            >
+              <option value="standard">Standar</option>
+              <option value="focus">Fokus · teks lebih besar</option>
+              <option value="read-aloud">Baca pesan dengan suara</option>
+            </select>
+          </label>
+        </div>
+        <p className="text-xs text-white/65">
+          {mode === "focus"
+            ? "Teks diperbesar dan pratinjau kanvas disembunyikan agar lebih mudah fokus."
+            : mode === "read-aloud"
+              ? "Gunakan tombol Baca pada pesan. Suara tersedia sesuai dukungan browser Anda."
+              : "Pesan teks dan pratinjau mind map ditampilkan bersama."}{" "}
+          Preferensi ini hanya berlaku untuk Anda.
+        </p>
+      </header>
+      {error && <ErrorNotice message={error} />}
+      {notice && (
+        <output className="block text-sm text-sky-200">{notice}</output>
+      )}
+      {showMembers && (
+        <div className="space-y-3 rounded-xl border border-white/15 p-4">
+          <h3>Anggota grup</h3>
+          {!room.data.members.length && (
+            <p className="text-sm text-white/65">
+              Belum ada informasi anggota pada respons grup.
+            </p>
+          )}
+          <ul className="space-y-2">
+            {room.data.members.map((member, index) => (
+              <li
+                key={member.userId || member.email + index}
+                className="flex flex-wrap items-center justify-between gap-2 text-sm"
+              >
+                <span>
+                  {member.name || member.email || "Anggota"} · {member.role}
+                </span>
+                <button
+                  type="button"
+                  className={button}
+                  disabled={!member.userId || remove.isPending}
+                  onClick={() => setRemoving(member.userId)}
+                >
+                  Keluarkan
+                </button>
+              </li>
+            ))}
+          </ul>
+          {removing && (
+            <fieldset
+              className="space-x-2"
+              aria-label="Konfirmasi mengeluarkan anggota"
+            >
+              <p className="mb-2 text-sm">Keluarkan anggota ini dari grup?</p>
+              <button
+                className={button}
+                type="button"
+                disabled={remove.isPending}
+                onClick={() => void confirmRemove()}
+              >
+                Ya, keluarkan
+              </button>
+              <button
+                className={button}
+                type="button"
+                disabled={remove.isPending}
+                onClick={() => setRemoving("")}
+              >
+                Batal
+              </button>
+            </fieldset>
+          )}
+          <form onSubmit={updateMembers} className="flex flex-wrap gap-2">
+            <label className="flex-1 text-sm">
+              Email anggota baru
+              <input className={field} name="email" type="email" required />
+            </label>
+            <button
+              className={button}
+              type="submit"
+              disabled={invite.isPending}
+            >
+              {invite.isPending ? "Menambahkan…" : "Tambah anggota"}
+            </button>
+          </form>
+        </div>
+      )}
       <div
         className={cn(
-          "max-w-[85%] rounded-2xl border px-3.5 py-2.5",
-          own ? "border-cyan/20 bg-cyan/10" : "border-white/10 bg-white/[0.04]",
+          "grid gap-4",
+          mode !== "focus" && "xl:grid-cols-[minmax(0,1fr)_320px]",
         )}
       >
-        {message.kind === "voice" && (
-          <VoicePlayer durationLabel={message.voiceDurationLabel ?? "0:00"} />
-        )}
-        <p className="text-sm leading-relaxed text-white/85">{message.text}</p>
-        {message.assist && <AssistCaption assist={message.assist} />}
-      </div>
-    </div>
-  );
-}
-
-function VoicePlayer({ durationLabel }: { durationLabel: string }) {
-  return (
-    <div className="mb-2 flex items-center gap-2.5 rounded-lg bg-black/20 p-2">
-      <button
-        type="button"
-        aria-label="Putar pesan suara"
-        className="grid size-7 shrink-0 place-items-center rounded-full bg-sky-500/20 text-sky-300 transition-colors hover:bg-sky-500/30"
-      >
-        <Play className="size-3.5 translate-x-px" />
-      </button>
-      <div className="flex flex-1 items-center gap-[3px]" aria-hidden="true">
-        {VOICE_BARS.map((bar) => (
-          <span
-            key={bar.id}
-            className="w-[3px] rounded-full bg-sky-400/60"
-            style={{ height: bar.height }}
+        <div className="min-w-0 rounded-xl border border-white/15">
+          <div className="space-y-2 border-b border-white/15 p-3 text-sm">
+            <output>
+              {chat.status === "unconfigured"
+                ? "Pengiriman chat belum tersedia. Riwayat diperbarui setiap 15 detik."
+                : chat.status === "connected"
+                  ? "Chat tersambung"
+                  : chat.status === "connecting"
+                    ? "Menyambungkan chat…"
+                    : chat.status === "authentication-required"
+                      ? "Masuk kembali untuk menghubungkan chat."
+                      : "Chat terputus. Draf Anda tetap tersedia."}
+            </output>
+            {chat.error && <ErrorNotice message={chat.error} />}
+            {chat.status === "disconnected" && (
+              <button className={button} type="button" onClick={chat.reconnect}>
+                Sambungkan kembali
+              </button>
+            )}
+          </div>
+          <div
+            role="log"
+            aria-label="Pesan grup"
+            aria-live="polite"
+            aria-relevant="additions"
+            className="h-[420px] space-y-4 overflow-y-auto p-4"
+          >
+            {history.isPending && <output>Memuat riwayat…</output>}
+            {history.error && (
+              <div>
+                <ErrorNotice message={getDocumentErrorMessage(history.error)} />
+                <button
+                  type="button"
+                  className={button}
+                  onClick={() => void history.refetch()}
+                >
+                  Coba lagi
+                </button>
+              </div>
+            )}
+            {history.hasNextPage && (
+              <button
+                className={button}
+                type="button"
+                disabled={history.isFetchingNextPage}
+                onClick={() => void history.fetchNextPage()}
+              >
+                Muat pesan lainnya
+              </button>
+            )}
+            {history.isSuccess && !messages.length && (
+              <p className="text-sm text-white/65">
+                Belum ada pesan di grup ini.
+              </p>
+            )}
+            {messages.map((message) => (
+              <Message
+                key={message.id}
+                message={message}
+                mode={mode}
+                onPreview={setPreviewId}
+                onError={setError}
+              />
+            ))}
+          </div>
+          <form
+            onSubmit={submit}
+            className="space-y-2 border-t border-white/15 p-3"
+          >
+            <label className="block text-sm">
+              Pesan
+              <textarea
+                className={field}
+                value={draft}
+                maxLength={4000}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  setNotice("");
+                }}
+                placeholder="Ketik pesan…"
+              />
+            </label>
+            <button
+              className={button}
+              type="submit"
+              disabled={chat.status !== "connected" || !draft.trim()}
+            >
+              Kirim pesan
+            </button>
+          </form>
+        </div>
+        <div className="space-y-4">
+          <ShareDocument
+            initialId={documentId}
+            onPrepare={(docId, title) => {
+              setPreviewId(docId);
+              setDraft(
+                "Mind map: " +
+                  title +
+                  "\n" +
+                  window.location.origin +
+                  "/ppt-canvas?documentId=" +
+                  encodeURIComponent(docId),
+              );
+              setNotice("Tautan dimasukkan ke draf. Kirim saat chat tersedia.");
+            }}
           />
-        ))}
+          {mode !== "focus" && previewId && (
+            <DocumentPreview key={previewId} id={previewId} />
+          )}
+        </div>
       </div>
-      <span className={cn(MONO, "shrink-0 text-[11px] text-white/40")}>
-        {durationLabel}
-      </span>
-    </div>
+    </section>
   );
 }
 
-function AssistCaption({ assist }: { assist: AccessibilityAssist }) {
-  const { icon: Icon, label, tone } = ASSIST_META[assist];
-  return (
-    <p
-      className={cn(
-        "mt-2 flex items-center gap-1.5 font-inter-600 text-[10px] uppercase tracking-wide",
-        tone,
-      )}
-    >
-      <Icon className="size-3" />
-      {label}
-    </p>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Shared map pieces                                                          */
-/* -------------------------------------------------------------------------- */
-
-function SharedMap({
-  nodes,
-  edges,
-  participants,
+function Message({
+  message,
+  mode,
+  onPreview,
+  onError,
 }: {
-  nodes: SharedMapNode[];
-  edges: SharedMapEdge[];
-  participants: Participant[];
+  message: ChatMessage;
+  mode: Mode;
+  onPreview: (id: string) => void;
+  onError: (error: string) => void;
 }) {
-  const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const presencePeer = participants[0];
-
+  const documentId = message.content.match(
+    /\/ppt-canvas\?documentId=([a-zA-Z0-9-]+)/,
+  )?.[1];
+  const timestamp = new Date(message.createdAt);
+  const read = () => {
+    if (!("speechSynthesis" in window)) {
+      onError("Browser ini belum mendukung pembacaan suara.");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message.content);
+    utterance.lang = "id-ID";
+    utterance.onerror = (event) => {
+      if (event.error !== "interrupted" && event.error !== "canceled")
+        onError("Pesan tidak dapat dibacakan. Coba suara atau browser lain.");
+    };
+    window.speechSynthesis.speak(utterance);
+  };
   return (
-    <div className="relative flex-1 overflow-hidden bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:22px_22px]">
-      <svg
-        className="absolute inset-0 h-full w-full"
-        aria-hidden="true"
-        preserveAspectRatio="none"
-      >
-        <title>Koneksi antar node</title>
-        {edges.map((edge) => {
-          const source = nodeById.get(edge.source);
-          const target = nodeById.get(edge.target);
-          if (!source || !target) return null;
-          return (
-            <line
-              key={edge.id}
-              x1={`${source.x}%`}
-              y1={`${source.y}%`}
-              x2={`${target.x}%`}
-              y2={`${target.y}%`}
-              stroke="rgba(255,255,255,0.14)"
-              strokeWidth={1.5}
-            />
-          );
-        })}
-      </svg>
-
-      {nodes.map((node) => {
-        const editor = node.editingBy
-          ? participants.find((p) => p.id === node.editingBy)
-          : undefined;
-        return (
-          <MapNodeCard key={node.id} node={node} editorColor={editor?.color} />
-        );
-      })}
-
-      {presencePeer && (
-        <span
-          className="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 place-items-center justify-center rounded-full border-2 border-primary-dark text-[10px] font-inter-600 text-primary-dark"
-          style={{
-            left: "14%",
-            top: "16%",
-            backgroundColor: presencePeer.color,
-          }}
-          title={`${presencePeer.name} sedang melihat`}
-        >
-          {presencePeer.name.charAt(0)}
-        </span>
-      )}
-
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-white/10 bg-[#0b1220]/95 p-1.5 shadow-xl backdrop-blur">
-        <MapToolButton label="Tambah node">
-          <Plus className="size-4" />
-        </MapToolButton>
-        <MapToolButton label="Hubungkan node">
-          <Link2 className="size-4" />
-        </MapToolButton>
-        <MapToolButton label="Unduh peta">
-          <Download className="size-4" />
-        </MapToolButton>
-      </div>
-    </div>
-  );
-}
-
-function MapNodeCard({
-  node,
-  editorColor,
-}: {
-  node: SharedMapNode;
-  editorColor?: string;
-}) {
-  const isPrimary = node.variant === "primary";
-  return (
-    <div
-      className={cn(
-        "absolute -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-[#0b1220]/90 shadow-lg backdrop-blur-sm",
-        isPrimary ? "px-4 py-2.5 border-white/25" : "px-3 py-2 border-white/12",
-      )}
-      style={{
-        left: `${node.x}%`,
-        top: `${node.y}%`,
-        boxShadow: editorColor ? `0 0 0 1px ${editorColor}66` : undefined,
-      }}
-    >
+    <article className="rounded-lg border border-white/10 bg-white/5 p-3">
+      <p className="mb-2 text-xs text-white/65">
+        {message.author}{" "}
+        {Number.isNaN(timestamp.getTime())
+          ? ""
+          : "· " + timestamp.toLocaleString("id-ID")}
+      </p>
       <p
         className={cn(
-          "font-inter-600 text-white",
-          isPrimary ? "text-sm" : "text-xs text-white/80",
+          "whitespace-pre-wrap break-words text-white/90",
+          mode === "focus"
+            ? "text-lg leading-loose"
+            : "text-sm leading-relaxed",
         )}
       >
-        {node.label}
+        {message.content}
       </p>
-      {node.caption && (
-        <p className="mt-0.5 text-[10px] text-white/40">{node.caption}</p>
+      {documentId && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            className={button}
+            href={"/ppt-canvas?documentId=" + documentId}
+          >
+            Buka mind map
+          </Link>
+          <button
+            className={button}
+            type="button"
+            onClick={() => onPreview(documentId)}
+          >
+            Pratinjau
+          </button>
+        </div>
       )}
-      {editorColor && (
-        <span
-          className="absolute -top-1.5 -right-1.5 size-3 rounded-[4px]"
-          style={{ backgroundColor: editorColor }}
-        />
+      {mode === "read-aloud" && (
+        <div className="mt-2 flex gap-2">
+          <button className={button} type="button" onClick={read}>
+            Baca pesan
+          </button>
+          <button
+            className={button}
+            type="button"
+            onClick={() => window.speechSynthesis?.cancel()}
+          >
+            Hentikan suara
+          </button>
+        </div>
       )}
-    </div>
+    </article>
   );
 }
 
-function MapToolButton({
-  label,
-  children,
+function ShareDocument({
+  initialId,
+  onPrepare,
 }: {
-  label: string;
-  children: ReactNode;
+  initialId: string;
+  onPrepare: (id: string, title: string) => void;
 }) {
+  const [value, setValue] = useState(initialId);
+  const [error, setError] = useState("");
+  const load = useMutation({ mutationFn: getDocument });
+  const prepare = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    try {
+      const id = value.includes("?")
+        ? new URL(value, window.location.origin).searchParams.get("documentId")
+        : value.trim();
+      if (!id || !/^[a-zA-Z0-9-]+$/.test(id))
+        throw new Error("Tempel tautan mind map atau ID dokumen yang valid.");
+      const response = await load.mutateAsync(id);
+      onPrepare(
+        response.data.id,
+        response.data.title || response.data.file_name,
+      );
+    } catch (cause) {
+      setError(getDocumentErrorMessage(cause));
+    }
+  };
   return (
-    <button
-      type="button"
-      aria-label={label}
-      className="grid size-8 place-items-center rounded-lg text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+    <form
+      onSubmit={prepare}
+      className="space-y-3 rounded-xl border border-white/15 p-4"
     >
-      {children}
-    </button>
+      <h3>Bagikan mind map</h3>
+      <p className="text-xs text-white/65">
+        Salin tautan dari Kanvas Pikir, lalu tempel di sini. Anggota dapat
+        membuka peta yang dibuat dari dokumen tersimpan. Perubahan node lokal
+        belum ikut tersimpan.
+      </p>
+      <label className="block text-sm">
+        Tautan atau ID dokumen
+        <input
+          required
+          className={field}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+        />
+      </label>
+      {error && <ErrorNotice message={error} />}
+      <button className={button} disabled={load.isPending} type="submit">
+        {load.isPending ? "Memeriksa dokumen…" : "Tambahkan tautan ke draf"}
+      </button>
+      <Link className="block text-sm text-sky-300 underline" href="/ppt-canvas">
+        Buka Kanvas Pikir
+      </Link>
+    </form>
+  );
+}
+
+function DocumentPreview({ id }: { id: string }) {
+  const query = useQuery({
+    queryKey: ["documents", id],
+    queryFn: () => getDocument(id),
+    retry: false,
+  });
+  return (
+    <aside
+      className="space-y-3 rounded-xl border border-white/15 p-4"
+      aria-label="Pratinjau materi mind map"
+    >
+      {query.isPending && <output>Memuat mind map…</output>}
+      {query.error && (
+        <ErrorNotice message={getDocumentErrorMessage(query.error)} />
+      )}
+      {query.data && (
+        <>
+          <h3>{query.data.data.title}</h3>
+          <p className="text-sm text-white/70">{query.data.data.summary}</p>
+          <ul className="list-disc space-y-2 pl-5 text-sm">
+            {query.data.data.key_points.map((point, index) => (
+              <li key={String(index) + point}>{point}</li>
+            ))}
+          </ul>
+          <Link
+            className="block text-sky-300 underline"
+            href={"/ppt-canvas?documentId=" + encodeURIComponent(id)}
+          >
+            Buka kanvas lengkap
+          </Link>
+        </>
+      )}
+    </aside>
+  );
+}
+
+function ErrorNotice({ message }: { message: string }) {
+  return (
+    <p
+      role="alert"
+      className="rounded-lg bg-red-500/10 p-3 text-sm text-red-200"
+    >
+      {message}
+    </p>
   );
 }

@@ -2,22 +2,10 @@
 
 import gsap from "gsap";
 import { ArrowRight } from "lucide-react";
-import { Fragment, useEffect, useLayoutEffect, useRef } from "react";
+import { Fragment, useRef } from "react";
 import { Button } from "@/components/ui/button";
-
-const useIsomorphicLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
-
-const HEADING_WORDS: { text: string; italic?: boolean }[] = [
-  { text: "Ruang" },
-  { text: "belajar" },
-  { text: "di" },
-  { text: "mana" },
-  { text: "pengetahuan", italic: true },
-  { text: "melampaui" },
-  { text: "batas" },
-  { text: "sensorik." },
-];
+import { useIsomorphicLayoutEffect } from "@/shared/hooks/useIsomorphicLayoutEffect";
+import { HERO_HEADING_WORDS } from "../data/LandingPageData";
 
 export default function HomeHero() {
   const rootRef = useRef<HTMLElement>(null);
@@ -91,7 +79,7 @@ export default function HomeHero() {
 
       <div className="relative z-10 flex flex-col items-center px-6 pt-40 gap-8 text-center sm:pt-32 sm:gap-10 lg:pt-40 lg:gap-12 3xl:pt-46.25 3xl:gap-15">
         <h1 className="w-full font-serif font-normal leading-tight text-white text-4xl max-w-[90%] sm:text-5xl sm:max-w-[80%] lg:text-6xl lg:max-w-[75%] 3xl:text-7xl 3xl:max-w-[70%]">
-          {HEADING_WORDS.map((word, i) => (
+          {HERO_HEADING_WORDS.map((word, i) => (
             <Fragment key={`${word.text}-${i}`}>
               <span
                 className={
@@ -102,7 +90,7 @@ export default function HomeHero() {
               >
                 {word.text}
               </span>
-              {i < HEADING_WORDS.length - 1 ? " " : ""}
+              {i < HERO_HEADING_WORDS.length - 1 ? " " : ""}
             </Fragment>
           ))}
         </h1>

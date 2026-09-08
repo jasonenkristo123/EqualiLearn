@@ -3,11 +3,9 @@
 import gsap from "gsap";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-
-const useIsomorphicLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+import { useIsomorphicLayoutEffect } from "@/shared/hooks/useIsomorphicLayoutEffect";
 
 const NAV_LINKS = [
   { label: "Beranda", id: "beranda", href: "/home#beranda" },

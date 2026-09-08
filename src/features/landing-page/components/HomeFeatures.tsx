@@ -3,11 +3,9 @@
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useRef } from "react";
+import { useIsomorphicLayoutEffect } from "@/shared/hooks/useIsomorphicLayoutEffect";
 import { BADGEDATA, PILLARS } from "../data/LandingPageData";
-
-const useIsomorphicLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 function BadgeRow({ "aria-hidden": ariaHidden }: { "aria-hidden"?: boolean }) {
   return (

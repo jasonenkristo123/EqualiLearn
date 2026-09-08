@@ -12,3 +12,8 @@ export type Step = {
   number: string;
   title: string;
 };
+
+export type HeadingWord = {
+  text: string;
+  italic?: boolean;
+};

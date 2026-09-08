@@ -1,9 +1,12 @@
 import { api } from "@/shared/lib/axios";
+import { getToken } from "@/shared/lib/token";
 
 export interface ChatGroup {
   id: string;
   name: string;
   description: string;
+  /** Human-friendly join code when the backend returns one. */
+  code: string;
   members: GroupMember[];
 }
 
@@ -17,9 +20,13 @@ export interface GroupMember {
 export interface ChatMessage {
   id: string;
   groupId: string;
+  /** Sender user id when the payload exposes one; "" otherwise. */
+  senderId: string;
   author: string;
   content: string;
   createdAt: string;
+  /** Set on locally-created messages awaiting a server echo. */
+  pending?: boolean;
 }
 
 export interface GroupInput {
@@ -76,6 +83,10 @@ function parseGroup(value: unknown): ChatGroup {
     id: string(group.id),
     name: string(group.name),
     description: string(group.description),
+    code:
+      string(group.code) ||
+      string(group.join_code) ||
+      string(group.invite_code),
     members: Array.isArray(group.members) ? group.members.map(parseMember) : [],
   };
 }
@@ -91,14 +102,49 @@ export function parseChatMessage(value: unknown, groupId: string): ChatMessage {
   return {
     id: string(message.id),
     groupId: string(message.group_id) || groupId,
+    senderId:
+      string(sender.id) || string(message.sender_id) || string(message.user_id),
     author:
       string(sender.name) ||
       string(message.sender_name) ||
       string(message.user_name) ||
       "Anggota",
     content,
-    createdAt: string(message.created_at),
+    createdAt: string(message.created_at) || new Date().toISOString(),
   };
+}
+
+interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/**
+ * The API exposes no `me` route, so identity for "is this my message" comes
+ * from the JWT payload. Best-effort: any missing claim just falls back to "".
+ */
+export function currentUser(): CurrentUser {
+  const empty = { id: "", name: "", email: "" };
+  const token = getToken();
+  const payload = token?.split(".")[1];
+  if (!payload) return empty;
+  try {
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const claims = record(JSON.parse(json));
+    const user = record(claims.user);
+    return {
+      id:
+        string(claims.sub) ||
+        string(claims.user_id) ||
+        string(claims.id) ||
+        string(user.id),
+      name: string(claims.name) || string(user.name),
+      email: string(claims.email) || string(user.email),
+    };
+  } catch {
+    return empty;
+  }
 }
 
 function pageResult<T>(

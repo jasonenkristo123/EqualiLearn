@@ -59,11 +59,6 @@ const DEFAULT_EDGE_OPTIONS = {
   type: "default",
   style: { stroke: "rgba(255,255,255,0.18)", strokeWidth: 1.5 },
 };
-
-/* -------------------------------------------------------------------------- */
-/*  Custom node                                                                */
-/* -------------------------------------------------------------------------- */
-
 function ConceptNode({ data, selected }: NodeProps<ConceptFlowNode>) {
   const addNode = useMindmapStore((s) => s.addNode);
 
@@ -162,11 +157,6 @@ function ConceptNode({ data, selected }: NodeProps<ConceptFlowNode>) {
 }
 
 const nodeTypes = { concept: ConceptNode };
-
-/* -------------------------------------------------------------------------- */
-/*  Canvas + toolbar                                                           */
-/* -------------------------------------------------------------------------- */
-
 interface PptCanvasProps {
   initialDocumentId?: string;
   onExport?: () => void;

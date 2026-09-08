@@ -53,11 +53,11 @@ const ICONS: Record<ConceptIcon, ComponentType<SVGProps<SVGSVGElement>>> = {
   activity: Activity,
 };
 
-const HANDLE_CLASS = "!size-2 !border-2 !border-white/25 !bg-[#0b1220]";
+const HANDLE_CLASS = "!size-2 !border-2 !border-white/25 !bg-app-surface";
 
 const DEFAULT_EDGE_OPTIONS = {
   type: "default",
-  style: { stroke: "rgba(255,255,255,0.18)", strokeWidth: 1.5 },
+  style: { stroke: "var(--app-canvas-edge)", strokeWidth: 1.5 },
 };
 function ConceptNode({ data, selected }: NodeProps<ConceptFlowNode>) {
   const addNode = useMindmapStore((s) => s.addNode);
@@ -97,7 +97,7 @@ function ConceptNode({ data, selected }: NodeProps<ConceptFlowNode>) {
   return (
     <div
       className={cn(
-        "rounded-xl border bg-[#0b1220]/95 shadow-xl backdrop-blur-sm transition-colors",
+        "rounded-xl border bg-app-surface/95 shadow-xl backdrop-blur-sm transition-colors",
         isRoot ? "w-64 p-4" : isCompact ? "w-52 px-4 py-3" : "w-56 p-4",
         selected
           ? "border-sky-400/60 ring-1 ring-sky-400/40"
@@ -191,21 +191,21 @@ function MindmapCanvas({ onExport }: PptCanvasProps) {
       fitViewOptions={{ padding: 0.35 }}
       minZoom={0.3}
       maxZoom={2}
-      className="bg-primary-dark"
+      className="bg-app-background"
     >
       <Background
         variant={BackgroundVariant.Dots}
         gap={22}
         size={1}
-        color="#1e293b"
+        color="var(--app-canvas-dot)"
       />
       <MiniMap
         pannable
         zoomable
-        bgColor="#0b1220"
-        maskColor="rgba(3,8,15,0.72)"
-        nodeColor="#334155"
-        nodeStrokeColor="#475569"
+        bgColor="var(--app-surface)"
+        maskColor="var(--app-canvas-mask)"
+        nodeColor="var(--app-canvas-node)"
+        nodeStrokeColor="var(--app-canvas-node-stroke)"
         className="!m-0 !bottom-4 !left-4 !right-auto overflow-hidden rounded-lg !border !border-white/10"
       />
       <Panel position="bottom-center" className="!bottom-4">
@@ -229,7 +229,7 @@ function CanvasToolbar({ onExport }: PptCanvasProps) {
   };
 
   return (
-    <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-[#0b1220]/95 p-1.5 shadow-xl backdrop-blur">
+    <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-app-surface/95 p-1.5 shadow-xl backdrop-blur">
       <button
         type="button"
         onClick={handleAdd}
@@ -370,7 +370,7 @@ function SourceContextPanel({
             <h3 className="font-inter-600 text-xs uppercase tracking-wider text-white/50">
               Extracted Concepts
             </h3>
-            <span className="rounded-full border border-cyan/30 bg-cyan/10 px-2 py-0.5 text-[10px] text-cyan">
+            <span className="rounded-full border border-cyan/30 bg-cyan/10 px-2 py-0.5 text-[10px] text-app-teal">
               AI Generated
             </span>
           </div>
@@ -499,7 +499,7 @@ export default function PptCanvas({
           {initialDocumentId && (
             <Link
               href={`/canvas-discussion?documentId=${encodeURIComponent(initialDocumentId)}`}
-              className="absolute right-4 top-4 z-10 rounded-lg border border-cyan/30 bg-[#0b1220] px-3 py-2 text-sm text-cyan"
+              className="absolute right-4 top-4 z-10 rounded-lg border border-cyan/30 bg-app-surface px-3 py-2 text-sm text-app-teal"
             >
               Bagikan ke grup
             </Link>
@@ -519,7 +519,7 @@ export default function PptCanvas({
             type="button"
             onClick={() => setSourceOpen(true)}
             aria-label="Buka Source Context"
-            className="absolute right-0 top-1/2 hidden -translate-y-1/2 rounded-l-lg border border-r-0 border-white/10 bg-[#0b1220] px-1.5 py-3 text-white/40 transition-colors hover:text-white lg:block"
+            className="absolute right-0 top-1/2 hidden -translate-y-1/2 rounded-l-lg border border-r-0 border-white/10 bg-app-surface px-1.5 py-3 text-white/40 transition-colors hover:text-white lg:block"
           >
             <ChevronsLeft className="size-4" />
           </button>

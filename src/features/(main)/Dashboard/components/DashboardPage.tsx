@@ -155,7 +155,7 @@ export default function DashboardPage() {
             className={cn(
               "shrink-0 rounded-md px-4 py-2 text-xs transition-colors",
               activeFilter === filter.id
-                ? "bg-white font-inter-600 text-primary-dark shadow-sm"
+                ? "bg-white font-inter-600 text-app-background shadow-sm"
                 : "text-white/45 hover:bg-white/5 hover:text-white/75",
             )}
           >
@@ -199,7 +199,7 @@ function HistoryCard({
   } = CATEGORY_META[item.category];
 
   return (
-    <article className="group relative flex min-h-[205px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0b1220]/55 transition-colors hover:border-white/20">
+    <article className="group relative flex min-h-[205px] flex-col overflow-hidden rounded-xl border border-white/10 bg-app-surface/55 transition-colors hover:border-white/20">
       <span
         aria-hidden="true"
         className={cn("absolute inset-y-0 left-0 w-[3px]", accent)}
@@ -232,7 +232,7 @@ function HistoryCard({
             type="button"
             onClick={onDelete}
             aria-label={`Hapus ${item.title}`}
-            className="grid size-8 place-items-center rounded-md text-white/35 transition-colors hover:bg-red-400/10 hover:text-red-300"
+            className="grid size-8 place-items-center rounded-md text-white/35 transition-colors hover:bg-red-400/10 hover:text-app-danger"
           >
             <Trash2 className="size-4" />
           </button>

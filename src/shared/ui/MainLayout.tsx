@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { APP_THEME_STORAGE_KEY, type AppTheme } from "@/shared/lib/app-theme";
 import MainNavbar from "@/shared/ui/MainNavbar";
 import Sidebar from "@/shared/ui/Sidebar";
 
@@ -24,9 +25,19 @@ export default function MainLayout({ children }: { children: ReactNode }) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<AppTheme>("dark");
 
-  // The navbar's menu button collapses the rail on desktop, opens the drawer on mobile.
+  useLayoutEffect(() => {
+    let storedTheme: string | null = null;
+    try {
+      storedTheme = window.localStorage.getItem(APP_THEME_STORAGE_KEY);
+    } catch {}
+    const initialTheme: AppTheme = storedTheme === "light" ? "light" : "dark";
+
+    document.documentElement.dataset.appTheme = initialTheme;
+    setTheme(initialTheme);
+  }, []);
+
   const handleMenuClick = useCallback(() => {
     if (isDesktop) setSidebarCollapsed((v) => !v);
     else setMobileNavOpen((v) => !v);
@@ -34,16 +45,32 @@ export default function MainLayout({ children }: { children: ReactNode }) {
 
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
   const toggleCollapsed = useCallback(() => setSidebarCollapsed((v) => !v), []);
-  const toggleTheme = useCallback(
-    () => setTheme((t) => (t === "dark" ? "light" : "dark")),
-    [],
-  );
+  const toggleTheme = useCallback(() => {
+    setTheme((currentTheme) => {
+      const nextTheme = currentTheme === "dark" ? "light" : "dark";
+      try {
+        window.localStorage.setItem(APP_THEME_STORAGE_KEY, nextTheme);
+      } catch {
+        // The in-memory toggle still works when persistence is unavailable.
+      }
+      document.documentElement.dataset.appTheme = nextTheme;
+      return nextTheme;
+    });
+  }, []);
 
   return (
     <div
-      className={cn("min-h-dvh bg-primary-dark", theme === "dark" && "dark")}
+      data-theme={theme}
+      className={cn(
+        "app-theme min-h-dvh bg-app-background text-white transition-colors duration-200",
+        theme,
+      )}
     >
-      <MainNavbar onMenuClick={handleMenuClick} onToggleTheme={toggleTheme} />
+      <MainNavbar
+        theme={theme}
+        onMenuClick={handleMenuClick}
+        onToggleTheme={toggleTheme}
+      />
       <div className="flex">
         <Sidebar
           collapsed={sidebarCollapsed}

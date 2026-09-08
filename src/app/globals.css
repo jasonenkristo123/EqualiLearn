@@ -59,6 +59,17 @@
   --color-lightblue: #a9cae9;
   --color-lightwhite: #0f172a80;
   --color-greylight: #c4c7c8;
+  --color-app-surface: var(--app-surface);
+  --color-app-background: var(--app-background);
+  --color-app-surface-muted: var(--app-surface-muted);
+  --color-app-field: var(--app-field);
+  --color-app-accent: var(--app-accent);
+  --color-app-success: var(--app-success);
+  --color-app-warning: var(--app-warning);
+  --color-app-danger: var(--app-danger);
+  --color-app-teal: var(--app-teal);
+  --color-app-highlight: var(--app-highlight);
+  --color-static-white: #ffffff;
 }
 
 :root {
@@ -128,6 +139,48 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Theme tokens for application and auth routes. The landing route group does
+   not render .app-theme, so its existing design remains isolated. */
+.app-theme {
+  --app-background: #050c14;
+  --app-surface: #0b1220;
+  --app-surface-muted: #0a111b;
+  --app-field: #070d15;
+  --app-accent: #7dd3fc;
+  --app-success: #6ee7b7;
+  --app-warning: #fcd34d;
+  --app-danger: #fca5a5;
+  --app-teal: #2dd4bf;
+  --app-highlight: #bae6fd;
+  --app-canvas-dot: #1e293b;
+  --app-canvas-edge: rgba(255, 255, 255, 0.18);
+  --app-canvas-mask: rgba(3, 8, 15, 0.72);
+  --app-canvas-node: #334155;
+  --app-canvas-node-stroke: #475569;
+  color-scheme: dark;
+}
+
+.app-theme.light,
+html[data-app-theme="light"] .app-theme {
+  --color-white: #0f172a;
+  --app-background: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-muted: #ffffff;
+  --app-field: #f8fafc;
+  --app-accent: #0369a1;
+  --app-success: #047857;
+  --app-warning: #b45309;
+  --app-danger: #b91c1c;
+  --app-teal: #0f766e;
+  --app-highlight: #075985;
+  --app-canvas-dot: #cbd5e1;
+  --app-canvas-edge: rgba(15, 23, 42, 0.22);
+  --app-canvas-mask: rgba(226, 232, 240, 0.72);
+  --app-canvas-node: #cbd5e1;
+  --app-canvas-node-stroke: #94a3b8;
+  color-scheme: light;
 }
 
 @utility font-inter-400 {

@@ -58,11 +58,11 @@ const MODE_LABEL: Record<Mode, string> = {
   "read-aloud": "Baca nyaring",
 };
 
-const surface = "rounded-2xl border border-white/10 bg-[#0a111b]";
+const surface = "rounded-2xl border border-white/10 bg-app-surface-muted";
 const softButton =
   "inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40";
 const field =
-  "w-full rounded-lg border border-white/15 bg-[#070d15] px-3 py-2 text-sm text-white outline-none placeholder:text-white/40 focus:border-sky-500/70";
+  "w-full rounded-lg border border-white/15 bg-app-field px-3 py-2 text-sm text-white outline-none placeholder:text-white/40 focus:border-sky-500/70";
 
 export default function CanvasDiscussion({
   initialGroupId = "",
@@ -181,7 +181,7 @@ function GroupLanding({ initialDocumentId }: { initialDocumentId: string }) {
           <button
             type="submit"
             disabled={create.isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-static-white transition hover:bg-sky-500 disabled:opacity-50"
           >
             <Plus size={16} />
             {create.isPending ? "Membuat grup…" : "Buat grup"}
@@ -510,7 +510,7 @@ function ChatPanel({
           type="button"
           onClick={copyCode}
           title="Salin kode grup"
-          className="inline-flex items-center gap-1 rounded-md bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-300 transition hover:bg-sky-500/25"
+          className="inline-flex items-center gap-1 rounded-md bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-app-accent transition hover:bg-sky-500/25"
         >
           {group.code || shortCode(group.id)}
           {copied ? <Check size={11} /> : <Copy size={11} />}
@@ -524,7 +524,7 @@ function ChatPanel({
               setShowInvite((v) => !v);
               setShowShare(false);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600/90 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-500"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600/90 px-2.5 py-1.5 text-xs font-semibold text-static-white transition hover:bg-sky-500"
           >
             <UserPlus size={13} />
             Undang
@@ -608,7 +608,7 @@ function ChatPanel({
       {/* Composer */}
       <div className="border-t border-white/10 p-3">
         {error && <ErrorNotice message={error} className="mb-2" />}
-        <div className="flex items-end gap-2 rounded-xl border border-white/15 bg-[#070d15] px-3 py-2">
+        <div className="flex items-end gap-2 rounded-xl border border-white/15 bg-app-field px-3 py-2">
           <textarea
             value={draft}
             onChange={(event) => onDraft(event.target.value)}
@@ -630,7 +630,7 @@ function ChatPanel({
             type="button"
             onClick={onSend}
             disabled={!draft.trim() || chat.status !== "connected"}
-            className="rounded-lg bg-sky-600 p-2 text-white transition hover:bg-sky-500 disabled:opacity-40"
+            className="rounded-lg bg-sky-600 p-2 text-static-white transition hover:bg-sky-500 disabled:opacity-40"
             aria-label="Kirim pesan"
           >
             <Send size={16} />
@@ -652,7 +652,7 @@ function ChatPanel({
               setShowShare((v) => !v);
               setShowInvite(false);
             }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-300 transition hover:bg-sky-500/20"
+            className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 text-xs font-medium text-app-accent transition hover:bg-sky-500/20"
           >
             <Share2 size={12} />
             Bagikan Kanvas
@@ -664,7 +664,7 @@ function ChatPanel({
         <button
           type="button"
           onClick={onShowCanvas}
-          className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-[#0a111b] px-2.5 py-1.5 text-xs text-white/80 shadow-lg transition hover:bg-white/10"
+          className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-app-surface-muted px-2.5 py-1.5 text-xs text-white/80 shadow-lg transition hover:bg-white/10"
         >
           <PanelRightOpen size={13} />
           Tampilkan Kanvas
@@ -687,10 +687,10 @@ function ConnectionBar({ chat }: { chat: ChatState }) {
             : "Chat terputus. Draf Anda tetap tersimpan.";
   const tone =
     chat.status === "connected"
-      ? "text-emerald-300"
+      ? "text-app-success"
       : chat.status === "connecting"
         ? "text-white/50"
-        : "text-amber-300";
+        : "text-app-warning";
 
   if (chat.status === "connected" && !chat.error) return null;
 
@@ -700,7 +700,7 @@ function ConnectionBar({ chat }: { chat: ChatState }) {
       {chat.error && (
         <button
           type="button"
-          className="text-amber-300 underline"
+          className="text-app-warning underline"
           onClick={chat.clearError}
         >
           tutup
@@ -709,7 +709,7 @@ function ConnectionBar({ chat }: { chat: ChatState }) {
       {chat.status === "disconnected" && (
         <button
           type="button"
-          className="ml-auto inline-flex items-center gap-1 text-sky-300 underline"
+          className="ml-auto inline-flex items-center gap-1 text-app-accent underline"
           onClick={chat.reconnect}
         >
           <RefreshCw size={11} />
@@ -769,7 +769,7 @@ function MessageBubble({
           "max-w-[80%] rounded-2xl px-3.5 py-2.5 whitespace-pre-wrap break-words",
           mode === "focus" ? "text-base leading-relaxed" : "text-sm",
           mine
-            ? "rounded-br-md bg-sky-600 text-white"
+            ? "rounded-br-md bg-sky-600 text-static-white"
             : "rounded-bl-md bg-white/[0.06] text-white/90",
           message.pending && "opacity-60",
         )}
@@ -801,7 +801,7 @@ function MessageBubble({
       )}
 
       {mode === "read-aloud" && !mine && (
-        <div className="flex items-center gap-2 px-1 text-[11px] text-sky-300/80">
+        <div className="flex items-center gap-2 px-1 text-[11px] text-app-accent/80">
           <AudioLines size={12} />
           <button type="button" className="underline" onClick={read}>
             Bacakan
@@ -828,13 +828,13 @@ function AvatarStack({ members }: { members: ChatGroup["members"] }) {
         <span
           key={member.userId || member.email || index}
           title={member.name || member.email}
-          className="grid h-7 w-7 place-items-center rounded-full border-2 border-[#0a111b] bg-gradient-to-br from-sky-500 to-indigo-500 text-[10px] font-semibold text-white"
+          className="grid h-7 w-7 place-items-center rounded-full border-2 border-app-surface-muted bg-gradient-to-br from-sky-500 to-indigo-500 text-[10px] font-semibold text-static-white"
         >
           {initials(member.name || member.email || "?")}
         </span>
       ))}
       {rest > 0 && (
-        <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-[#0a111b] bg-white/15 text-[10px] font-semibold text-white">
+        <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-app-surface-muted bg-white/15 text-[10px] font-semibold text-white">
           +{rest}
         </span>
       )}
@@ -876,7 +876,7 @@ function ModeMenu({
           />
           <div
             role="menu"
-            className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-white/15 bg-[#0d1521] py-1 text-xs shadow-xl"
+            className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-white/15 bg-app-surface py-1 text-xs shadow-xl"
           >
             {(Object.keys(MODE_LABEL) as Mode[]).map((value) => (
               <button
@@ -890,7 +890,7 @@ function ModeMenu({
                 }}
                 className={cn(
                   "flex w-full items-center justify-between px-3 py-2 text-left transition hover:bg-white/10",
-                  value === mode && "text-sky-300",
+                  value === mode && "text-app-accent",
                 )}
               >
                 {MODE_LABEL[value]}
@@ -987,7 +987,7 @@ function InvitePanel({
             </span>
             <button
               type="button"
-              className="text-white/45 hover:text-red-300 disabled:opacity-30"
+              className="text-white/45 hover:text-app-danger disabled:opacity-30"
               disabled={!member.userId || remove.isPending}
               onClick={() => setRemoving(member.userId)}
               aria-label="Keluarkan anggota"
@@ -1003,7 +1003,7 @@ function InvitePanel({
           <span>Keluarkan anggota ini?</span>
           <button
             type="button"
-            className="ml-auto text-red-300 underline disabled:opacity-40"
+            className="ml-auto text-app-danger underline disabled:opacity-40"
             disabled={remove.isPending}
             onClick={() => void confirmRemove()}
           >
@@ -1030,12 +1030,12 @@ function InvitePanel({
         <button
           type="submit"
           disabled={invite.isPending}
-          className="shrink-0 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-static-white hover:bg-sky-500 disabled:opacity-50"
         >
           {invite.isPending ? "…" : "Tambah"}
         </button>
       </form>
-      {notice && <p className="text-xs text-emerald-300">{notice}</p>}
+      {notice && <p className="text-xs text-app-success">{notice}</p>}
       {error && <ErrorNotice message={error} />}
     </div>
   );
@@ -1095,14 +1095,14 @@ function ShareDocument({
         <button
           type="submit"
           disabled={load.isPending}
-          className="shrink-0 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-static-white hover:bg-sky-500 disabled:opacity-50"
         >
           {load.isPending ? "…" : "Siapkan"}
         </button>
       </div>
       <Link
         href="/ppt-canvas"
-        className="inline-block text-xs text-sky-300 underline"
+        className="inline-block text-xs text-app-accent underline"
       >
         Buka Kanvas Pikir
       </Link>
@@ -1127,10 +1127,10 @@ function CanvasPanel({
   return (
     <section className={cn(surface, "relative flex min-h-0 flex-col")}>
       <header className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-        <Share2 size={15} className="text-sky-400" />
+        <Share2 size={15} className="text-app-accent" />
         <div>
           <h2 className="text-sm font-semibold">Live Shared Mind Map</h2>
-          <p className="flex items-center gap-1.5 text-[11px] text-emerald-300">
+          <p className="flex items-center gap-1.5 text-[11px] text-app-success">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             {editingCount} Editing
           </p>
@@ -1152,7 +1152,7 @@ function CanvasPanel({
           <MindMapPlaceholder />
         )}
 
-        <div className="pointer-events-none absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1 rounded-xl border border-white/10 bg-[#0d1521]/90 p-1.5">
+        <div className="pointer-events-none absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1 rounded-xl border border-white/10 bg-app-surface/90 p-1.5">
           {[
             { key: "add", Icon: Plus },
             { key: "link", Icon: Link2 },
@@ -1246,7 +1246,7 @@ function PlaceholderNode({
         "absolute rounded-lg border px-3 py-2 text-xs shadow-lg",
         primary
           ? "border-sky-500/60 bg-sky-500/10 text-white"
-          : "border-white/15 bg-[#0d1521] text-white/80",
+          : "border-white/15 bg-app-surface text-white/80",
         className,
       )}
     >
@@ -1285,7 +1285,7 @@ function DocumentPreview({ id }: { id: string }) {
           </ul>
           <Link
             href={`/ppt-canvas?documentId=${encodeURIComponent(id)}`}
-            className="inline-block text-xs text-sky-300 underline"
+            className="inline-block text-xs text-app-accent underline"
           >
             Buka kanvas lengkap
           </Link>
@@ -1306,7 +1306,7 @@ function ErrorNotice({
     <p
       role="alert"
       className={cn(
-        "rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-200",
+        "rounded-lg bg-red-500/10 px-3 py-2 text-xs text-app-danger",
         className,
       )}
     >

@@ -222,7 +222,7 @@ export default function LiveTranscribe({
           {errorMessage && (
             <p
               role="alert"
-              className="rounded-lg bg-red-400/10 p-3 text-sm text-red-300"
+              className="rounded-lg bg-red-400/10 p-3 text-sm text-app-danger"
             >
               {errorMessage}
             </p>
@@ -274,7 +274,7 @@ export default function LiveTranscribe({
                 Sintesis cerdas dari percakapan berjalan
               </p>
             </div>
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 font-inter-500 text-xs text-cyan">
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 font-inter-500 text-xs text-app-teal">
               <Zap className="size-3" />
               Realtime AI
             </span>
@@ -286,7 +286,7 @@ export default function LiveTranscribe({
             <button
               type="button"
               onClick={onGenerateSummary}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3.5 font-inter-600 text-sm text-primary-dark transition-colors hover:bg-white/90"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3.5 font-inter-600 text-sm text-app-background transition-colors hover:bg-white/90"
             >
               <Zap className="size-4" />
               Ringkas Transkrip Sekarang

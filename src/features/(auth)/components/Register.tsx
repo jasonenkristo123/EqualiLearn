@@ -62,7 +62,7 @@ export default function Register() {
   };
 
   return (
-    <main className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-primary-dark px-4 py-12">
+    <main className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-app-background px-4 py-12">
       <Image
         src="/images/green-gradients.png"
         alt=""
@@ -84,7 +84,7 @@ export default function Register() {
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-serif font-normal leading-tight text-white text-2xl sm:text-3xl">
             Mulai Perjalanan{" "}
-            <span className="italic text-lightblue">Inklusif</span> Anda
+            <span className="italic text-app-highlight">Inklusif</span> Anda
           </h1>
           <p className="text-sm text-white/50">
             Akses ruang belajar adaptif Anda.
@@ -96,7 +96,7 @@ export default function Register() {
         {register.isError && (
           <p
             role="alert"
-            className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs text-red-300"
+            className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs text-app-danger"
           >
             {getApiErrorMessage(register.error)}
           </p>
@@ -154,7 +154,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={pending}
-            className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-inter-600 text-sm text-primary-dark transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-inter-600 text-sm text-app-background transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? (
               <Loader2 className="size-4 animate-spin" />

@@ -7,7 +7,6 @@ export interface AuthUser {
   email: string;
 }
 
-/** Loosely-typed envelope — the token is persisted by the axios interceptor. */
 export interface AuthResponse {
   message?: string;
   token?: string;
@@ -67,8 +66,4 @@ export async function logoutRequest(): Promise<LogoutResponse> {
   return data;
 }
 
-/**
- * Path for the top-level browser redirect that starts Google OAuth on the API.
- * Kept relative so it flows through the same `/api` proxy as every other call.
- */
 export const GOOGLE_LOGIN_PATH = "/api/auth/google/login";

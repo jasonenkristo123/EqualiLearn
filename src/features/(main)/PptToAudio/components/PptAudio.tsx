@@ -374,9 +374,9 @@ export default function PptAudio({
               <span
                 className={cn(
                   activeDoc.status === "ready"
-                    ? "text-sky-400"
+                    ? "text-app-accent"
                     : activeDoc.status === "error"
-                      ? "text-red-300"
+                      ? "text-app-danger"
                       : "text-white/50",
                 )}
               >
@@ -442,7 +442,7 @@ export default function PptAudio({
             icon={ScrollText}
             title="Transkrip tersinkronisasi"
             action={
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 font-inter-500 text-xs text-cyan">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 font-inter-500 text-xs text-app-teal">
                 <Zap className="size-3" />
                 Live Sync
               </span>
@@ -531,7 +531,7 @@ export default function PptAudio({
             onClick={togglePlay}
             disabled={!narrationText || synthesizeMutation.isPending}
             aria-label={isPlaying ? "Jeda" : "Putar"}
-            className="grid size-11 place-items-center rounded-full bg-white text-primary-dark transition-transform hover:scale-105 disabled:cursor-wait disabled:opacity-40 disabled:hover:scale-100"
+            className="grid size-11 place-items-center rounded-full bg-white text-app-background transition-transform hover:scale-105 disabled:cursor-wait disabled:opacity-40 disabled:hover:scale-100"
           >
             {synthesizeMutation.isPending ? (
               <LoaderCircle className="size-5 animate-spin" />
@@ -590,14 +590,14 @@ export default function PptAudio({
           >
             {formatSpeed(speed)}x
           </button>
-          <label className="inline-flex items-center gap-1.5 rounded-md border border-cyan/30 bg-cyan/10 px-2.5 py-1 font-inter-500 text-xs text-cyan">
+          <label className="inline-flex items-center gap-1.5 rounded-md border border-cyan/30 bg-cyan/10 px-2.5 py-1 font-inter-500 text-xs text-app-teal">
             <Mic className="size-3" />
             <span className="sr-only">Pilih suara AI Narrator</span>
             <select
               value={activeVoiceId}
               onChange={handleVoiceChange}
               disabled={voicesQuery.isLoading || synthesizeMutation.isPending}
-              className="max-w-44 bg-transparent text-cyan outline-none disabled:opacity-50"
+              className="max-w-44 bg-transparent text-app-teal outline-none disabled:opacity-50"
             >
               {voices.length === 0 && (
                 <option value="aura-asteria-en">AI Narrator</option>
@@ -606,7 +606,7 @@ export default function PptAudio({
                 <option
                   key={voice.id}
                   value={voice.id}
-                  className="bg-primary-dark"
+                  className="bg-app-background"
                 >
                   {voice.name}
                 </option>
@@ -689,9 +689,9 @@ function DocTab({
         className={cn(
           "size-3.5",
           doc.status === "error"
-            ? "text-red-300"
+            ? "text-app-danger"
             : active
-              ? "text-sky-400"
+              ? "text-app-accent"
               : "text-white/40",
         )}
       />

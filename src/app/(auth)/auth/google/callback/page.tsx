@@ -27,7 +27,7 @@ function GoogleCallbackInner() {
   }, [code, state, callback.mutate, router]);
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-primary-dark px-4">
+    <main className="flex min-h-dvh items-center justify-center bg-app-background px-4">
       <div className="flex flex-col items-center gap-3 text-center">
         {callback.isError ? (
           <>

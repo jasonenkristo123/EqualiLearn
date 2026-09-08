@@ -80,7 +80,7 @@ export default function Sidebar({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/10 bg-primary-dark transition-[width,transform] duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/10 bg-app-background transition-[width,transform] duration-300 ease-in-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
           "lg:sticky lg:top-14 lg:h-[calc(100dvh-3.5rem)] lg:translate-x-0",
           collapsed ? "lg:w-[76px]" : "lg:w-64",
@@ -112,7 +112,7 @@ export default function Sidebar({
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                   collapsed && "lg:justify-center lg:gap-0 lg:px-0",
                   active
-                    ? "bg-white font-inter-600 text-primary-dark shadow-sm"
+                    ? "bg-white font-inter-600 text-app-background shadow-sm"
                     : "font-inter-500 text-white/60 hover:bg-white/5 hover:text-white",
                 )}
               >

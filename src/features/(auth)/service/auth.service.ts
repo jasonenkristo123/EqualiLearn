@@ -1,0 +1,69 @@
+import { api } from "@/shared/lib/axios";
+import type { LoginInput, RegisterInput } from "../schema/auth.schema";
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface AuthResponse {
+  message?: string;
+  token?: string;
+  access_token?: string;
+  user?: AuthUser;
+  data?: {
+    token?: string;
+    access_token?: string;
+    user?: AuthUser;
+  } | null;
+}
+
+export interface GoogleCallbackParams {
+  code: string;
+  state: string;
+}
+
+export async function registerRequest(
+  input: RegisterInput,
+): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>("auth/register", {
+    name: input.name,
+    email: input.email,
+    password: input.password,
+    confirm_password: input.confirm_password,
+  });
+  return data;
+}
+
+export async function loginRequest(
+  input: Pick<LoginInput, "email" | "password">,
+): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>("auth/login", {
+    email: input.email,
+    password: input.password,
+  });
+  return data;
+}
+
+export async function googleCallbackRequest(
+  params: GoogleCallbackParams,
+): Promise<AuthResponse> {
+  const { data } = await api.get<AuthResponse>("auth/google/callback", {
+    params,
+  });
+  return data;
+}
+
+export interface LogoutResponse {
+  message?: string;
+  status?: string | boolean;
+  success?: boolean;
+}
+
+export async function logoutRequest(): Promise<LogoutResponse> {
+  const { data } = await api.post<LogoutResponse>("auth/logout");
+  return data;
+}
+
+export const GOOGLE_LOGIN_PATH = "/api/auth/google/login";

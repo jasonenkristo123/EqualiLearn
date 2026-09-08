@@ -1,4 +1,15 @@
-import type { Badge, Pillar, Step } from "../type/LandingPageType";
+import type { Badge, HeadingWord, Pillar, Step } from "../type/LandingPageType";
+
+export const HERO_HEADING_WORDS: HeadingWord[] = [
+  { text: "Ruang" },
+  { text: "belajar" },
+  { text: "di" },
+  { text: "mana" },
+  { text: "pengetahuan", italic: true },
+  { text: "melampaui" },
+  { text: "batas" },
+  { text: "sensorik." },
+];
 
 export const PILLARS: Pillar[] = [
   {

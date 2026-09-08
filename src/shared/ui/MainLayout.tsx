@@ -1,25 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/shared/hooks/useMediaQuery";
 import { APP_THEME_STORAGE_KEY, type AppTheme } from "@/shared/lib/app-theme";
 import MainNavbar from "@/shared/ui/MainNavbar";
 import Sidebar from "@/shared/ui/Sidebar";
-
-function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
-    const mql = window.matchMedia(query);
-    const update = () => setMatches(mql.matches);
-    update();
-    mql.addEventListener("change", update);
-    return () => mql.removeEventListener("change", update);
-  }, [query]);
-
-  return matches;
-}
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");

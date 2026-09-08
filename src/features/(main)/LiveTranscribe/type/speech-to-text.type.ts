@@ -37,3 +37,22 @@ export type SpeechSocketMessage =
   | { type: "transcript"; payload: SpeechTranscriptPayload }
   | { type: "finished"; payload: SpeechFinishedPayload }
   | { type: "error"; payload: { message: string } };
+
+export interface TranscriptEntry {
+  id: string;
+  timestamp: string;
+  text: string;
+  interim?: boolean;
+}
+
+export interface ActionItem {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface SummaryData {
+  takeaways: string[];
+  keyTerms: string[];
+  actionItems: ActionItem[];
+}

@@ -8,7 +8,6 @@ import type {
 
 export async function getSpeechVoices(): Promise<SpeechVoicesResponse> {
   const { data } = await api.get<SpeechVoicesResponse>("speech/voices");
-  console.info("[PptToAudio] speech/voices response", data);
   return data;
 }
 
@@ -19,12 +18,6 @@ export async function synthesizeSpeech(
     const response = await api.post<Blob>("speech/synthesize", input, {
       responseType: "blob",
       headers: { Accept: "audio/mpeg, audio/*" },
-    });
-
-    console.info("[PptToAudio] speech/synthesize response", {
-      status: response.status,
-      contentType: response.headers["content-type"],
-      size: response.data.size,
     });
 
     if (response.data.type.includes("json")) {
@@ -64,19 +57,10 @@ export async function getSpeechHistory(
   page = 1,
   limit = 10,
 ): Promise<SpeechHistoryResponse> {
-  try {
-    const { data } = await api.get<SpeechHistoryResponse>("speech/history", {
-      params: { page, limit },
-    });
-    console.info("[PptToAudio] speech/history response", data);
-    return data;
-  } catch (error) {
-    console.error("[PptToAudio] speech/history error", {
-      status: axios.isAxiosError(error) ? error.response?.status : undefined,
-      data: axios.isAxiosError(error) ? error.response?.data : undefined,
-    });
-    throw error;
-  }
+  const { data } = await api.get<SpeechHistoryResponse>("speech/history", {
+    params: { page, limit },
+  });
+  return data;
 }
 
 export function getPptAudioErrorMessage(

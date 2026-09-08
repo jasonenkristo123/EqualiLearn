@@ -4,20 +4,28 @@ import { parseChatMessage, record } from "./groups";
 export type ChatEvent =
   | { type: "message"; message: ChatMessage }
   | { type: "ack"; clientId: string; message: ChatMessage }
+  | { type: "connected"; userId: string }
   | { type: "error"; message: string };
 
 /**
- * Wire adapter for `GET ws/chat`.
+ * Wire adapter for `GET /api/v1/ws/chat`.
  *
- * The backend has not published a schema. What is confirmed:
- * - the endpoint is `<API base>/ws/chat` and rejects a tokenless request with
- *   `{"error":"missing authentication token"}`;
- * - the token travels as a query parameter (browsers cannot set WS headers).
+ * Implemented from the backend reference:
+ * - connect at `<API base>/ws/chat?token=<JWT>&group_id=<uuid>` (browsers
+ *   cannot set WS headers, so the token travels as a query parameter and the
+ *   optional `group_id` auto-joins that room on connect);
+ * - on open the server sends `{ type: "connected", payload: { user_id } }`;
+ * - a text message is sent as
+ *   `{ type: "chat_message", group_id, content, message_type: "text" }`;
+ * - the server re-broadcasts it to every member as
+ *   `{ type: "chat_message", group_id, payload: { id, group_id, sender_id,
+ *     sender_name, sender_email, content, message_type, created_at } }`;
+ * - failures arrive as `{ type: "error", group_id, payload: "<reason string>" }`.
  *
- * Everything else here is a best guess kept in one place so it is cheap to
- * correct once a real example is available. `useGroupChat` treats a socket
- * write as unconfirmed and still polls REST history as the source of truth,
- * so a wrong guess degrades to "history only", it does not lose messages.
+ * The protocol carries no client-supplied correlation id, so `encode` ignores
+ * `clientId` and `useGroupChat` reconciles an optimistic message by matching
+ * `sender_id` + `content` on the echoed broadcast (and, as a backstop, against
+ * polled REST history).
  */
 export interface ChatProtocol {
   url: (apiBase: string, token: string, groupId: string) => string;
@@ -31,23 +39,39 @@ function string(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+/** Control frames that are not chat history and carry nothing to render. */
+const IGNORED_TYPES = new Set([
+  "typing",
+  "join_group",
+  "leave_group",
+  "ping",
+  "pong",
+]);
+
 const adapter: ChatProtocol = {
   url(apiBase, token, groupId) {
     const base = apiBase.endsWith("/") ? apiBase : `${apiBase}/`;
     const socketUrl = new URL("ws/chat", base);
     socketUrl.protocol = socketUrl.protocol === "https:" ? "wss:" : "ws:";
     socketUrl.searchParams.set("token", token);
-    // Harmless if the server ignores it; lets a per-room server scope the socket.
-    socketUrl.searchParams.set("group_id", groupId);
+    // Auto-joins the room on connect per the backend contract.
+    if (groupId) socketUrl.searchParams.set("group_id", groupId);
     return socketUrl.toString();
   },
 
   subscribe(groupId) {
-    return { type: "join", group_id: groupId };
+    // Redundant with `group_id` in the URL, but harmless and keeps the room
+    // membership explicit if the socket is ever reused across groups.
+    return { type: "join_group", group_id: groupId };
   },
 
-  encode(groupId, content, clientId) {
-    return { type: "message", group_id: groupId, content, client_id: clientId };
+  encode(groupId, content) {
+    return {
+      type: "chat_message",
+      group_id: groupId,
+      content,
+      message_type: "text",
+    };
   },
 
   decode(raw, groupId) {
@@ -64,34 +88,28 @@ const adapter: ChatProtocol = {
       return {
         type: "error",
         message:
+          string(envelope.payload) ||
           string(envelope.error) ||
           string(envelope.message) ||
           "Layanan chat mengembalikan kesalahan.",
       };
     }
-    if (
-      kind === "pong" ||
-      kind === "ping" ||
-      kind === "join" ||
-      kind === "joined"
-    ) {
-      return null;
+
+    if (kind === "connected") {
+      const payload = record(envelope.payload);
+      return { type: "connected", userId: string(payload.user_id) };
     }
 
-    // The message body may be the frame itself or nested under a common key.
+    if (IGNORED_TYPES.has(kind)) return null;
+
+    // A chat message body lives under `payload`; tolerate a few nestings.
     const body =
-      envelope.message ?? envelope.data ?? envelope.payload ?? envelope;
+      envelope.payload ?? envelope.message ?? envelope.data ?? envelope;
     let message: ChatMessage;
     try {
       message = parseChatMessage(body, groupId);
     } catch {
       return null;
-    }
-
-    const clientId =
-      string(record(body).client_id) || string(envelope.client_id);
-    if ((kind === "ack" || envelope.ack) && clientId) {
-      return { type: "ack", clientId, message };
     }
     return { type: "message", message };
   },

@@ -56,6 +56,17 @@ export async function googleCallbackRequest(
   return data;
 }
 
+export interface LogoutResponse {
+  message?: string;
+  status?: string | boolean;
+  success?: boolean;
+}
+
+export async function logoutRequest(): Promise<LogoutResponse> {
+  const { data } = await api.post<LogoutResponse>("auth/logout");
+  return data;
+}
+
 /**
  * Path for the top-level browser redirect that starts Google OAuth on the API.
  * Kept relative so it flows through the same `/api` proxy as every other call.

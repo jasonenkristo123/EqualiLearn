@@ -23,6 +23,17 @@ export function useGroupChat(groupId: string) {
   const [attempt, setAttempt] = useState(0);
   /** Messages sent from this tab that the server has not echoed back yet. */
   const [pending, setPending] = useState<ChatMessage[]>([]);
+  /**
+   * Our own identity. Seeded from the JWT, then replaced by the authoritative
+   * `user_id` from the server's `connected` frame so that echo reconciliation
+   * and "is this mine" checks line up with the broadcast `sender_id`.
+   */
+  const [self, setSelf] = useState(() => {
+    const me = currentUser();
+    return { id: me.id, name: me.name };
+  });
+  const selfRef = useRef(self);
+  selfRef.current = self;
 
   const settlePending = useCallback(
     (match: (message: ChatMessage) => boolean) => {
@@ -94,18 +105,29 @@ export function useGroupChat(groupId: string) {
         return;
       }
 
+      if (decoded.type === "connected") {
+        if (decoded.userId && decoded.userId !== selfRef.current.id) {
+          setSelf((prev) => ({ ...prev, id: decoded.userId }));
+        }
+        return;
+      }
+
       const message = decoded.message;
       if (message.groupId && message.groupId !== groupId) return;
 
       if (decoded.type === "ack") {
         settlePending((local) => local.id === `local-${decoded.clientId}`);
       } else {
-        // No client id to correlate: drop an optimistic copy by content.
-        settlePending(
-          (local) =>
-            local.content === message.content &&
-            (!message.senderId || local.senderId === message.senderId),
-        );
+        // No client id in the protocol: correlate the echo by content, and by
+        // sender when both sides expose one.
+        const mine = message.senderId === selfRef.current.id;
+        settlePending((local) => {
+          if (local.content !== message.content) return false;
+          if (message.senderId && local.senderId && !mine) {
+            return local.senderId === message.senderId;
+          }
+          return true;
+        });
       }
       void client.invalidateQueries({
         queryKey: groupKeys.messages(groupId),
@@ -147,7 +169,7 @@ export function useGroupChat(groupId: string) {
       }
       clientCounter += 1;
       const clientId = `${Date.now()}-${clientCounter}`;
-      const me = currentUser();
+      const me = selfRef.current;
       socket.send(JSON.stringify(protocol.encode(groupId, content, clientId)));
       setPending((current) => [
         ...current,
@@ -169,6 +191,8 @@ export function useGroupChat(groupId: string) {
     status,
     error,
     pending,
+    /** Authoritative id for the signed-in user once the socket has connected. */
+    selfId: self.id,
     send,
     clearError: () => setError(""),
     reconnect: () => setAttempt((value) => value + 1),

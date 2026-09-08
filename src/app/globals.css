@@ -49,13 +49,16 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  --background-image-linear-white: linear-gradient(106deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.1) 100%);
-  --color-primary-dark: #050C14;
-  --color-cyan: #14B8A6;
-  --color-lightblue: #A9CAE9;
-  --color-lightwhite: #0F172A80;
-  --color-greylight: #C4C7C8;
-
+  --background-image-linear-white: linear-gradient(
+    106deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  --color-primary-dark: #050c14;
+  --color-cyan: #14b8a6;
+  --color-lightblue: #a9cae9;
+  --color-lightwhite: #0f172a80;
+  --color-greylight: #c4c7c8;
 }
 
 :root {
@@ -194,7 +197,7 @@ html {
 @utility no-scrollbar {
   /* IE and Edge */
   -ms-overflow-style: none;
-  
+
   /* Firefox */
   scrollbar-width: none;
 
@@ -202,4 +205,113 @@ html {
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* SweetAlert2 White Aesthetic Theme */
+.swal2-container.swal-white-backdrop {
+  backdrop-filter: blur(4px);
+  background: rgba(5, 12, 20, 0.5) !important;
+}
+
+.swal2-popup.swal-white-popup {
+  background: #ffffff !important;
+  border-radius: 1.25rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.18),
+    0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+  padding: 1.75rem !important;
+  font-family: var(--font-inter), sans-serif !important;
+  color: #0f172a !important;
+  max-width: 24rem !important;
+  width: 90% !important;
+}
+
+.swal2-popup.swal-white-popup .swal2-title {
+  color: #0f172a !important;
+  font-family: var(--font-inter), sans-serif !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 0 0 0 !important;
+  margin: 0 !important;
+}
+
+.swal2-popup.swal-white-popup .swal2-html-container {
+  color: #64748b !important;
+  font-family: var(--font-inter), sans-serif !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  margin: 0.75rem 0 0 0 !important;
+  padding: 0 !important;
+}
+
+.swal2-popup.swal-white-popup .swal2-icon {
+  margin: 0.5rem auto 0.75rem auto !important;
+  width: 3.75rem !important;
+  height: 3.75rem !important;
+  border-color: #d8b48c !important;
+  color: #d8b48c !important;
+}
+
+.swal2-popup.swal-white-popup .swal2-icon .swal2-icon-content {
+  font-size: 2.25rem !important;
+}
+
+.swal2-popup.swal-white-popup .swal2-actions {
+  display: flex !important;
+  gap: 0.75rem !important;
+  width: 100% !important;
+  margin-top: 1.5rem !important;
+  padding: 0 !important;
+  justify-content: center !important;
+}
+
+.swal-white-cancel-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0.625rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+  padding: 0.625rem 1.25rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: #475569 !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  outline: none !important;
+  font-family: var(--font-inter), sans-serif !important;
+}
+
+.swal-white-cancel-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.swal-white-confirm-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0.625rem !important;
+  border: 1px solid #d8b48c !important;
+  background: #d8b48c !important;
+  padding: 0.625rem 1.25rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #050c14 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  outline: none !important;
+  font-family: var(--font-inter), sans-serif !important;
+}
+
+.swal-white-confirm-btn:hover {
+  background: #e3c4a2 !important;
+  border-color: #e3c4a2 !important;
+}
+
+.swal2-popup.swal-white-popup .swal2-loader {
+  border-color: #050c14 transparent #050c14 transparent !important;
 }

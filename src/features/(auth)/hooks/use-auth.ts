@@ -1,9 +1,11 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import { clearToken } from "@/shared/lib/token";
 import type { LoginInput, RegisterInput } from "../schema/auth.schema";
 import {
@@ -11,6 +13,7 @@ import {
   type GoogleCallbackParams,
   googleCallbackRequest,
   loginRequest,
+  logoutRequest,
   registerRequest,
 } from "../service/auth.service";
 
@@ -76,9 +79,60 @@ export function useGoogleCallback() {
 
 export function useLogout() {
   const router = useRouter();
-  return () => {
-    clearToken();
-    router.replace("/login");
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: () => logoutRequest(),
+    onSettled: () => {
+      clearToken();
+      queryClient.clear();
+      router.replace("/login");
+    },
+  });
+
+  const confirmLogout = useCallback(async () => {
+    const result = await Swal.fire({
+      title: "Konfirmasi Keluar",
+      text: "Apakah Anda yakin ingin keluar dari akun ini?",
+      icon: "warning",
+      iconColor: "#d8b48c",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Keluar",
+      cancelButtonText: "Batal",
+      reverseButtons: true,
+      focusCancel: true,
+      buttonsStyling: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      customClass: {
+        container: "swal-white-backdrop",
+        popup: "swal-white-popup",
+        title: "swal-white-title",
+        htmlContainer: "swal-white-text",
+        actions: "swal-white-actions",
+        confirmButton: "swal-white-confirm-btn",
+        cancelButton: "swal-white-cancel-btn",
+      },
+      preConfirm: async () => {
+        try {
+          return await mutation.mutateAsync();
+        } catch {
+          // Fallback gracefully so cookie & state cleanup still execute
+          return null;
+        }
+      },
+    });
+
+    if (result.isConfirmed) {
+      toast.success("Berhasil keluar.");
+    }
+  }, [mutation]);
+
+  return {
+    ...mutation,
+    confirmLogout,
+    logout: mutation.mutate,
+    logoutAsync: mutation.mutateAsync,
   };
 }
 

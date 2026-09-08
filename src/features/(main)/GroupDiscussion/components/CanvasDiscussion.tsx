@@ -99,6 +99,9 @@ function GroupLanding({ initialDocumentId }: { initialDocumentId: string }) {
     getNextPageParam: (page, pages) =>
       page.hasMore ? pages.length + 1 : undefined,
     retry: false,
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
   const create = useMutation({ mutationFn: createGroup });
 
@@ -247,10 +250,6 @@ function GroupLanding({ initialDocumentId }: { initialDocumentId: string }) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Room: chat (left) + shared canvas (right)                                */
-/* -------------------------------------------------------------------------- */
-
 function DiscussionRoom({
   groupId,
   documentId,
@@ -269,6 +268,11 @@ function DiscussionRoom({
     queryKey: groupKeys.detail(groupId),
     queryFn: () => getGroup(groupId),
     retry: false,
+    // Keep the member roster fresh while the room is open (invites/removals
+    // have no realtime event).
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
   const history = useInfiniteQuery({
     queryKey: groupKeys.messages(groupId),
@@ -281,6 +285,7 @@ function DiscussionRoom({
     refetchInterval: 15000,
   });
   const chat = useGroupChat(groupId);
+  const meId = chat.selfId || me.id;
 
   useEffect(() => {
     try {
@@ -315,11 +320,12 @@ function DiscussionRoom({
         }
       }
     }
-    const confirmed = new Set(
-      [...merged.values()].map((m) => `${m.author}::${m.content}`),
-    );
+
+    const dedupeKey = (m: ChatMessage) =>
+      `${m.senderId || m.author}::${m.content}`;
+    const confirmed = new Set([...merged.values()].map(dedupeKey));
     for (const local of chat.pending) {
-      if (!confirmed.has(`${local.author}::${local.content}`)) {
+      if (!confirmed.has(dedupeKey(local))) {
         merged.set(local.id, local);
       }
     }
@@ -373,7 +379,7 @@ function DiscussionRoom({
       >
         <ChatPanel
           group={room.data}
-          meId={me.id}
+          meId={meId}
           mode={mode}
           onChangeMode={changeMode}
           messages={messages}
@@ -930,6 +936,7 @@ function InvitePanel({
     try {
       await invite.mutateAsync(email);
       await client.invalidateQueries({ queryKey: groupKeys.detail(group.id) });
+      void client.invalidateQueries({ queryKey: groupKeys.lists });
       form.reset();
       setNotice(`Undangan untuk ${email} ditambahkan.`);
     } catch (cause) {
@@ -1287,10 +1294,6 @@ function DocumentPreview({ id }: { id: string }) {
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Small helpers                                                            */
-/* -------------------------------------------------------------------------- */
 
 function ErrorNotice({
   message,
